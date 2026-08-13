@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-and-smoke:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -22,8 +22,5 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Build Release
-        run: dotnet build QS3D.Platform.sln -c Release
-
-      - name: Run deterministic smoke tests
-        run: dotnet run --project tests/QS3D.Platform.SmokeTests/QS3D.Platform.SmokeTests.csproj -c Release --no-build
+      - name: Run authoritative validation
+        run: bash scripts/validate.sh
