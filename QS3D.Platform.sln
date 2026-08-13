@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Geometry", "src\QS3D.Platform.Geometry\QS3D.Platform.Geometry.csproj", "{E6F55C65-99C4-4B31-9A7E-39D58D2251F1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Domain", "src\QS3D.Platform.Domain\QS3D.Platform.Domain.csproj", "{BE8AC43C-5608-4875-9515-61A74CF0256A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Cad.Abstractions", "src\QS3D.Platform.Cad.Abstractions\QS3D.Platform.Cad.Abstractions.csproj", "{706637F0-1335-45A0-AFE9-99B612774E8A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Application", "src\QS3D.Platform.Application\QS3D.Platform.Application.csproj", "{B49A35E4-A0CA-43D5-A2AE-99249335980C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.InMemory", "src\QS3D.Platform.InMemory\QS3D.Platform.InMemory.csproj", "{483FB93B-36C4-4628-8E91-296AD602312A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.SmokeTests", "tests\QS3D.Platform.SmokeTests\QS3D.Platform.SmokeTests.csproj", "{5034A381-71F7-4EA3-962D-34C6227B8512}"
+EndProject
+Global
+  GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    Debug|Any CPU = Debug|Any CPU
+    Release|Any CPU = Release|Any CPU
+  EndGlobalSection
+  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    {E6F55C65-99C4-4B31-9A7E-39D58D2251F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {E6F55C65-99C4-4B31-9A7E-39D58D2251F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {E6F55C65-99C4-4B31-9A7E-39D58D2251F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {E6F55C65-99C4-4B31-9A7E-39D58D2251F1}.Release|Any CPU.Build.0 = Release|Any CPU
+    {BE8AC43C-5608-4875-9515-61A74CF0256A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {BE8AC43C-5608-4875-9515-61A74CF0256A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {BE8AC43C-5608-4875-9515-61A74CF0256A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {BE8AC43C-5608-4875-9515-61A74CF0256A}.Release|Any CPU.Build.0 = Release|Any CPU
+    {706637F0-1335-45A0-AFE9-99B612774E8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {706637F0-1335-45A0-AFE9-99B612774E8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {706637F0-1335-45A0-AFE9-99B612774E8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {706637F0-1335-45A0-AFE9-99B612774E8A}.Release|Any CPU.Build.0 = Release|Any CPU
+    {B49A35E4-A0CA-43D5-A2AE-99249335980C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {B49A35E4-A0CA-43D5-A2AE-99249335980C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {B49A35E4-A0CA-43D5-A2AE-99249335980C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {B49A35E4-A0CA-43D5-A2AE-99249335980C}.Release|Any CPU.Build.0 = Release|Any CPU
+    {483FB93B-36C4-4628-8E91-296AD602312A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {483FB93B-36C4-4628-8E91-296AD602312A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {483FB93B-36C4-4628-8E91-296AD602312A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {483FB93B-36C4-4628-8E91-296AD602312A}.Release|Any CPU.Build.0 = Release|Any CPU
+    {5034A381-71F7-4EA3-962D-34C6227B8512}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {5034A381-71F7-4EA3-962D-34C6227B8512}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {5034A381-71F7-4EA3-962D-34C6227B8512}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {5034A381-71F7-4EA3-962D-34C6227B8512}.Release|Any CPU.Build.0 = Release|Any CPU
+  EndGlobalSection
+EndGlobal
