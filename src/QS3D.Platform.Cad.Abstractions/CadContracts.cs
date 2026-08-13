@@ -48,9 +48,20 @@ public enum CadTransactionMode
     ReadWrite
 }
 
+public static class CadBlockReferencePropertyNames
+{
+    public const string BlockName = "QS3D.BlockName";
+    public const string InsertionX = "QS3D.InsertionX";
+    public const string InsertionY = "QS3D.InsertionY";
+    public const string InsertionZ = "QS3D.InsertionZ";
+    public const string UniformScale = "QS3D.UniformScale";
+    public const string RotationRadians = "QS3D.RotationRadians";
+}
+
 public sealed record CadLayerSnapshot(string Name, bool IsOn = true, bool IsFrozen = false, bool IsLocked = false);
 public sealed record CadEntityDraft(CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string>? Properties = null, string? LayerName = null);
 public sealed record CadEntitySnapshot(CadHandle Handle, CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string> Properties, string LayerName = "0");
+public sealed record CadBlockDefinitionSnapshot(string Name, Point3 BasePoint, IReadOnlyList<CadEntityDraft> Entities);
 
 public interface ICadHistory
 {
@@ -68,6 +79,8 @@ public interface ICadTransaction : IDisposable
     IReadOnlyList<CadEntitySnapshot> Query();
     IReadOnlyList<CadLayerSnapshot> GetLayers();
     CadLayerSnapshot? GetLayer(string name);
+    IReadOnlyList<CadBlockDefinitionSnapshot> GetBlocks();
+    CadBlockDefinitionSnapshot? GetBlock(string name);
     CadHandle Append(CadEntityDraft draft);
     void Update(CadEntitySnapshot entity);
     void Erase(CadHandle handle);
@@ -75,6 +88,9 @@ public interface ICadTransaction : IDisposable
     void UpdateLayer(CadLayerSnapshot layer);
     void EraseLayer(string name);
     void SetCurrentLayer(string name);
+    void CreateBlock(string name, Point3 basePoint, IReadOnlyList<CadEntityDraft> entities);
+    void EraseBlock(string name);
+    CadHandle InsertBlock(string name, Point3 insertionPoint, double uniformScale = 1d, double rotationRadians = 0d);
     void Commit();
 }
 
