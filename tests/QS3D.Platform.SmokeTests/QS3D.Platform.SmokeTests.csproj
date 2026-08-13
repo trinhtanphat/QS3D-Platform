@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\src\QS3D.Platform.Quantity\QS3D.Platform.Quantity.csproj" />
     <ProjectReference Include="..\..\src\QS3D.Platform.Persistence\QS3D.Platform.Persistence.csproj" />
     <ProjectReference Include="..\..\src\QS3D.Platform.Diagnostics\QS3D.Platform.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\QS3D.Platform.Parity\QS3D.Platform.Parity.csproj" />
     <ProjectReference Include="..\..\src\QS3D.Platform.InMemory\QS3D.Platform.InMemory.csproj" />
   </ItemGroup>
 </Project>
