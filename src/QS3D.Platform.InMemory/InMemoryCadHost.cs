@@ -1,6 +1,7 @@
 using System.Globalization;
 using QS3D.Platform.Cad.Abstractions;
 using QS3D.Platform.Domain;
+using QS3D.Platform.Geometry;
 
 namespace QS3D.Platform.InMemory;
 
@@ -11,6 +12,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
     private readonly Stack<DatabaseState> _redo = new();
     private Dictionary<CadHandle, CadEntitySnapshot> _entities = new();
     private Dictionary<string, CadLayerSnapshot> _layers = CreateDefaultLayers();
+    private Dictionary<string, CadBlockDefinitionSnapshot> _blocks = CreateDefaultBlocks();
     private string _currentLayerName = "0";
     private ulong _nextHandle = 1;
     private long _revision;
@@ -20,11 +22,20 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
     }
 
     public InMemoryCadDatabase(IEnumerable<CadEntitySnapshot> entities)
-        : this(entities, null, null)
+        : this(entities, null, null, null)
     {
     }
 
     public InMemoryCadDatabase(IEnumerable<CadEntitySnapshot> entities, IEnumerable<CadLayerSnapshot>? layers, string? currentLayerName)
+        : this(entities, layers, currentLayerName, null)
+    {
+    }
+
+    public InMemoryCadDatabase(
+        IEnumerable<CadEntitySnapshot> entities,
+        IEnumerable<CadLayerSnapshot>? layers,
+        string? currentLayerName,
+        IEnumerable<CadBlockDefinitionSnapshot>? blocks)
     {
         ArgumentNullException.ThrowIfNull(entities);
         if (layers is not null)
@@ -39,6 +50,17 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             }
         }
         if (!_layers.ContainsKey("0")) _layers.Add("0", new CadLayerSnapshot("0"));
+
+        if (blocks is not null)
+        {
+            foreach (var block in blocks)
+            {
+                ArgumentNullException.ThrowIfNull(block);
+                var clone = NormalizeBlock(block, _layers);
+                if (!_blocks.TryAdd(clone.Name, clone))
+                    throw new InvalidOperationException($"Duplicate CAD block '{clone.Name}' in snapshot.");
+            }
+        }
 
         ulong maxHandle = 0;
         foreach (var entity in entities)
@@ -55,6 +77,15 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         if (maxHandle == ulong.MaxValue && _entities.Count != 0)
             throw new InvalidOperationException("Snapshot exhausted the 64-bit CAD handle range.");
         _nextHandle = _entities.Count == 0 ? 1UL : maxHandle + 1UL;
+
+        foreach (var entity in _entities.Values)
+        {
+            if (entity.Kind != CadEntityKind.BlockReference) continue;
+            if (!entity.Properties.TryGetValue(CadBlockReferencePropertyNames.BlockName, out var blockName)) continue;
+            if (!_blocks.ContainsKey(NormalizeBlockName(blockName)))
+                throw new InvalidOperationException($"Block reference {entity.Handle} targets missing block '{blockName}'.");
+        }
+
         _currentLayerName = currentLayerName is null ? "0" : NormalizeLayerName(currentLayerName);
         if (!_layers.TryGetValue(_currentLayerName, out var current))
             throw new InvalidOperationException($"Current layer '{_currentLayerName}' does not exist in snapshot.");
@@ -71,7 +102,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
     public ICadTransaction BeginTransaction(CadTransactionMode mode = CadTransactionMode.ReadWrite)
     {
         lock (_sync)
-            return new Transaction(this, mode, _revision, _nextHandle, CloneEntities(_entities), CloneLayers(_layers), _currentLayerName);
+            return new Transaction(this, mode, _revision, _nextHandle, CloneEntities(_entities), CloneLayers(_layers), CloneBlocks(_blocks), _currentLayerName);
     }
 
     public void Undo()
@@ -96,7 +127,13 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         }
     }
 
-    private void Publish(long expectedRevision, ulong nextHandle, Dictionary<CadHandle, CadEntitySnapshot> entities, Dictionary<string, CadLayerSnapshot> layers, string currentLayerName)
+    private void Publish(
+        long expectedRevision,
+        ulong nextHandle,
+        Dictionary<CadHandle, CadEntitySnapshot> entities,
+        Dictionary<string, CadLayerSnapshot> layers,
+        Dictionary<string, CadBlockDefinitionSnapshot> blocks,
+        string currentLayerName)
     {
         lock (_sync)
         {
@@ -106,24 +143,29 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             _redo.Clear();
             _entities = CloneEntities(entities);
             _layers = CloneLayers(layers);
+            _blocks = CloneBlocks(blocks);
             _currentLayerName = currentLayerName;
             _nextHandle = nextHandle;
             _revision++;
         }
     }
 
-    private DatabaseState Capture() => new(CloneEntities(_entities), CloneLayers(_layers), _currentLayerName, _nextHandle);
+    private DatabaseState Capture() => new(CloneEntities(_entities), CloneLayers(_layers), CloneBlocks(_blocks), _currentLayerName, _nextHandle);
 
     private void Restore(DatabaseState state)
     {
         _entities = CloneEntities(state.Entities);
         _layers = CloneLayers(state.Layers);
+        _blocks = CloneBlocks(state.Blocks);
         _currentLayerName = state.CurrentLayerName;
         _nextHandle = state.NextHandle;
     }
 
     private static Dictionary<string, CadLayerSnapshot> CreateDefaultLayers()
         => new(StringComparer.OrdinalIgnoreCase) { ["0"] = new CadLayerSnapshot("0") };
+
+    private static Dictionary<string, CadBlockDefinitionSnapshot> CreateDefaultBlocks()
+        => new(StringComparer.OrdinalIgnoreCase);
 
     private static Dictionary<CadHandle, CadEntitySnapshot> CloneEntities(Dictionary<CadHandle, CadEntitySnapshot> source)
     {
@@ -140,6 +182,19 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         return result;
     }
 
+    private static Dictionary<string, CadBlockDefinitionSnapshot> CloneBlocks(Dictionary<string, CadBlockDefinitionSnapshot> source)
+    {
+        var result = new Dictionary<string, CadBlockDefinitionSnapshot>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in source) result.Add(pair.Key, CloneBlock(pair.Value));
+        return result;
+    }
+
+    private static CadBlockDefinitionSnapshot CloneBlock(CadBlockDefinitionSnapshot block)
+        => new(block.Name, block.BasePoint, block.Entities.Select(CloneDraft).ToArray());
+
+    private static CadEntityDraft CloneDraft(CadEntityDraft draft)
+        => new(draft.Kind, draft.Extents, draft.Properties is null ? null : CloneProperties(draft.Properties), draft.LayerName);
+
     private static Dictionary<string, string> CloneProperties(IReadOnlyDictionary<string, string> source)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -153,7 +208,34 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         return name.Trim();
     }
 
-    private sealed record DatabaseState(Dictionary<CadHandle, CadEntitySnapshot> Entities, Dictionary<string, CadLayerSnapshot> Layers, string CurrentLayerName, ulong NextHandle);
+    private static string NormalizeBlockName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Block name must not be blank.", nameof(name));
+        return name.Trim();
+    }
+
+    private static CadBlockDefinitionSnapshot NormalizeBlock(CadBlockDefinitionSnapshot block, Dictionary<string, CadLayerSnapshot> layers)
+    {
+        var name = NormalizeBlockName(block.Name);
+        if (block.Entities is null || block.Entities.Count == 0)
+            throw new InvalidOperationException($"Block '{name}' must contain at least one entity.");
+        var members = new CadEntityDraft[block.Entities.Count];
+        for (var index = 0; index < block.Entities.Count; index++)
+        {
+            var member = block.Entities[index] ?? throw new InvalidOperationException($"Block '{name}' contains a null entity draft.");
+            var layerName = member.LayerName is null ? "0" : NormalizeLayerName(member.LayerName);
+            if (!layers.ContainsKey(layerName)) layers.Add(layerName, new CadLayerSnapshot(layerName));
+            members[index] = new CadEntityDraft(member.Kind, member.Extents, member.Properties is null ? null : CloneProperties(member.Properties), layerName);
+        }
+        return new CadBlockDefinitionSnapshot(name, block.BasePoint, members);
+    }
+
+    private sealed record DatabaseState(
+        Dictionary<CadHandle, CadEntitySnapshot> Entities,
+        Dictionary<string, CadLayerSnapshot> Layers,
+        Dictionary<string, CadBlockDefinitionSnapshot> Blocks,
+        string CurrentLayerName,
+        ulong NextHandle);
 
     private sealed class Transaction : ICadTransaction
     {
@@ -161,12 +243,21 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         private readonly long _baseRevision;
         private Dictionary<CadHandle, CadEntitySnapshot>? _working;
         private Dictionary<string, CadLayerSnapshot>? _layers;
+        private Dictionary<string, CadBlockDefinitionSnapshot>? _blocks;
         private string _currentLayerName;
         private ulong _nextHandle;
         private bool _committed;
         private bool _changed;
 
-        public Transaction(InMemoryCadDatabase owner, CadTransactionMode mode, long baseRevision, ulong nextHandle, Dictionary<CadHandle, CadEntitySnapshot> working, Dictionary<string, CadLayerSnapshot> layers, string currentLayerName)
+        public Transaction(
+            InMemoryCadDatabase owner,
+            CadTransactionMode mode,
+            long baseRevision,
+            ulong nextHandle,
+            Dictionary<CadHandle, CadEntitySnapshot> working,
+            Dictionary<string, CadLayerSnapshot> layers,
+            Dictionary<string, CadBlockDefinitionSnapshot> blocks,
+            string currentLayerName)
         {
             _owner = owner;
             Mode = mode;
@@ -174,6 +265,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             _nextHandle = nextHandle;
             _working = working;
             _layers = layers;
+            _blocks = blocks;
             _currentLayerName = currentLayerName;
         }
 
@@ -203,6 +295,23 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             EnsureOpen();
             var normalized = NormalizeLayerName(name);
             return _layers!.TryGetValue(normalized, out var layer) ? layer : null;
+        }
+
+        public IReadOnlyList<CadBlockDefinitionSnapshot> GetBlocks()
+        {
+            EnsureOpen();
+            return _blocks!.Values
+                .OrderBy(static x => x.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(static x => x.Name, StringComparer.Ordinal)
+                .Select(CloneBlock)
+                .ToArray();
+        }
+
+        public CadBlockDefinitionSnapshot? GetBlock(string name)
+        {
+            EnsureOpen();
+            var normalized = NormalizeBlockName(name);
+            return _blocks!.TryGetValue(normalized, out var block) ? CloneBlock(block) : null;
         }
 
         public CadHandle Append(CadEntityDraft draft)
@@ -274,6 +383,8 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             if (!_layers!.ContainsKey(normalized)) throw new KeyNotFoundException($"Layer '{normalized}' does not exist.");
             if (_working!.Values.Any(entity => StringComparer.OrdinalIgnoreCase.Equals(entity.LayerName, normalized)))
                 throw new InvalidOperationException($"Layer '{normalized}' cannot be erased while it owns entities.");
+            if (_blocks!.Values.SelectMany(static block => block.Entities).Any(entity => StringComparer.OrdinalIgnoreCase.Equals(entity.LayerName ?? "0", normalized)))
+                throw new InvalidOperationException($"Layer '{normalized}' cannot be erased while block definitions reference it.");
             _layers.Remove(normalized);
             _changed = true;
         }
@@ -290,11 +401,65 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             }
         }
 
+        public void CreateBlock(string name, Point3 basePoint, IReadOnlyList<CadEntityDraft> entities)
+        {
+            RequireWrite();
+            ArgumentNullException.ThrowIfNull(entities);
+            var normalized = NormalizeBlockName(name);
+            if (_blocks!.ContainsKey(normalized)) throw new InvalidOperationException($"Block '{normalized}' already exists.");
+            if (entities.Count == 0) throw new InvalidOperationException("A block definition must contain at least one entity.");
+
+            var members = new CadEntityDraft[entities.Count];
+            for (var index = 0; index < entities.Count; index++)
+            {
+                var member = entities[index] ?? throw new InvalidOperationException("Block definition contains a null entity draft.");
+                var layerName = member.LayerName is null ? "0" : NormalizeLayerName(member.LayerName);
+                var layer = RequireLayer(layerName);
+                members[index] = new CadEntityDraft(member.Kind, member.Extents, member.Properties is null ? null : CloneProperties(member.Properties), layer.Name);
+            }
+
+            _blocks.Add(normalized, new CadBlockDefinitionSnapshot(normalized, basePoint, members));
+            _changed = true;
+        }
+
+        public void EraseBlock(string name)
+        {
+            RequireWrite();
+            var normalized = NormalizeBlockName(name);
+            if (!_blocks!.ContainsKey(normalized)) throw new KeyNotFoundException($"Block '{normalized}' does not exist.");
+            if (_working!.Values.Any(entity => ReferencesBlock(entity, normalized)))
+                throw new InvalidOperationException($"Block '{normalized}' cannot be erased while references exist.");
+            _blocks.Remove(normalized);
+            _changed = true;
+        }
+
+        public CadHandle InsertBlock(string name, Point3 insertionPoint, double uniformScale = 1d, double rotationRadians = 0d)
+        {
+            RequireWrite();
+            var normalized = NormalizeBlockName(name);
+            if (!_blocks!.TryGetValue(normalized, out var block)) throw new KeyNotFoundException($"Block '{normalized}' does not exist.");
+            Numeric.RequireFinite(uniformScale, nameof(uniformScale));
+            if (uniformScale <= 0d) throw new ArgumentOutOfRangeException(nameof(uniformScale), uniformScale, "Block scale must be greater than zero.");
+            Numeric.RequireFinite(rotationRadians, nameof(rotationRadians));
+
+            var extents = TransformExtents(block, insertionPoint, uniformScale, rotationRadians);
+            var properties = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [CadBlockReferencePropertyNames.BlockName] = block.Name,
+                [CadBlockReferencePropertyNames.InsertionX] = insertionPoint.X.ToString("R", CultureInfo.InvariantCulture),
+                [CadBlockReferencePropertyNames.InsertionY] = insertionPoint.Y.ToString("R", CultureInfo.InvariantCulture),
+                [CadBlockReferencePropertyNames.InsertionZ] = insertionPoint.Z.ToString("R", CultureInfo.InvariantCulture),
+                [CadBlockReferencePropertyNames.UniformScale] = uniformScale.ToString("R", CultureInfo.InvariantCulture),
+                [CadBlockReferencePropertyNames.RotationRadians] = rotationRadians.ToString("R", CultureInfo.InvariantCulture)
+            };
+            return Append(new CadEntityDraft(CadEntityKind.BlockReference, extents, properties, _currentLayerName));
+        }
+
         public void Commit()
         {
             RequireWrite();
             if (_committed) throw new InvalidOperationException("Transaction is already committed.");
-            if (_changed) _owner.Publish(_baseRevision, _nextHandle, _working!, _layers!, _currentLayerName);
+            if (_changed) _owner.Publish(_baseRevision, _nextHandle, _working!, _layers!, _blocks!, _currentLayerName);
             _committed = true;
         }
 
@@ -302,12 +467,64 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         {
             _working = null;
             _layers = null;
+            _blocks = null;
         }
 
         private CadLayerSnapshot RequireLayer(string name)
         {
             var normalized = NormalizeLayerName(name);
             return _layers!.TryGetValue(normalized, out var layer) ? layer : throw new KeyNotFoundException($"Layer '{normalized}' does not exist.");
+        }
+
+        private static bool ReferencesBlock(CadEntitySnapshot entity, string blockName)
+            => entity.Kind == CadEntityKind.BlockReference
+                && entity.Properties.TryGetValue(CadBlockReferencePropertyNames.BlockName, out var referenced)
+                && StringComparer.OrdinalIgnoreCase.Equals(referenced, blockName);
+
+        private static BoundingBox3 TransformExtents(CadBlockDefinitionSnapshot block, Point3 insertionPoint, double scale, double rotationRadians)
+        {
+            Point3? minimum = null;
+            Point3? maximum = null;
+            foreach (var member in block.Entities)
+            {
+                var box = member.Extents;
+                Accumulate(TransformPoint(new Point3(box.Min.X, box.Min.Y, box.Min.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Min.X, box.Min.Y, box.Max.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Min.X, box.Max.Y, box.Min.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Min.X, box.Max.Y, box.Max.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Max.X, box.Min.Y, box.Min.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Max.X, box.Min.Y, box.Max.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Max.X, box.Max.Y, box.Min.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+                Accumulate(TransformPoint(new Point3(box.Max.X, box.Max.Y, box.Max.Z), block.BasePoint, insertionPoint, scale, rotationRadians), ref minimum, ref maximum);
+            }
+            return new BoundingBox3(minimum ?? throw new InvalidOperationException("Block has no extents."), maximum!.Value);
+        }
+
+        private static Point3 TransformPoint(Point3 point, Point3 basePoint, Point3 insertionPoint, double scale, double rotationRadians)
+        {
+            var x = (point.X - basePoint.X) * scale;
+            var y = (point.Y - basePoint.Y) * scale;
+            var z = (point.Z - basePoint.Z) * scale;
+            var cosine = Math.Cos(rotationRadians);
+            var sine = Math.Sin(rotationRadians);
+            return new Point3(
+                insertionPoint.X + (x * cosine) - (y * sine),
+                insertionPoint.Y + (x * sine) + (y * cosine),
+                insertionPoint.Z + z);
+        }
+
+        private static void Accumulate(Point3 point, ref Point3? minimum, ref Point3? maximum)
+        {
+            if (minimum is null)
+            {
+                minimum = point;
+                maximum = point;
+                return;
+            }
+            var min = minimum.Value;
+            var max = maximum!.Value;
+            minimum = new Point3(Math.Min(min.X, point.X), Math.Min(min.Y, point.Y), Math.Min(min.Z, point.Z));
+            maximum = new Point3(Math.Max(max.X, point.X), Math.Max(max.Y, point.Y), Math.Max(max.Z, point.Z));
         }
 
         private void RequireWrite()
@@ -318,7 +535,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
 
         private void EnsureOpen()
         {
-            if (_working is null || _layers is null) throw new ObjectDisposedException(nameof(Transaction));
+            if (_working is null || _layers is null || _blocks is null) throw new ObjectDisposedException(nameof(Transaction));
         }
     }
 }
