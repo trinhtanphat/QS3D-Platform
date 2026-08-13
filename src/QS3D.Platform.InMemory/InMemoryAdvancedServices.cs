@@ -8,11 +8,17 @@ public sealed class InMemoryAdvancedServices
         Viewport = new InMemoryViewportService(document.Database);
         Snaps = new InMemorySnapService(document.Database, Viewport);
         SpatialSelection = new InMemorySpatialSelectionService(document.Database);
+        Xrefs = new InMemoryXrefService();
+        Layouts = new InMemoryLayoutService();
+        Plot = new InMemoryPlotService(Layouts);
     }
 
     public InMemoryViewportService Viewport { get; }
     public InMemorySnapService Snaps { get; }
     public InMemorySpatialSelectionService SpatialSelection { get; }
+    public InMemoryXrefService Xrefs { get; }
+    public InMemoryLayoutService Layouts { get; }
+    public InMemoryPlotService Plot { get; }
 }
 
 public static class InMemoryAdvancedServicesRegistry
