@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>QS3D.Platform.Geometry</AssemblyName>
     <RootNamespace>QS3D.Platform.Geometry</RootNamespace>
   </PropertyGroup>

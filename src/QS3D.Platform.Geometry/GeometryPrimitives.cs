@@ -2,9 +2,11 @@ namespace QS3D.Platform.Geometry;
 
 public static class Numeric
 {
+    public static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
     public static double RequireFinite(double value, string parameterName)
     {
-        if (!double.IsFinite(value))
+        if (!IsFinite(value))
             throw new ArgumentOutOfRangeException(parameterName, value, "Value must be finite.");
         return value;
     }
@@ -26,7 +28,7 @@ public static class Numeric
         var sy = y / scale;
         var sz = z / scale;
         var result = scale * Math.Sqrt((sx * sx) + (sy * sy) + (sz * sz));
-        if (!double.IsFinite(result))
+        if (!IsFinite(result))
             throw new OverflowException("Vector length is not representable as a finite double.");
         return result;
     }
@@ -50,7 +52,17 @@ public readonly struct Point3 : IEquatable<Point3>
     public double DistanceTo(Point3 other) => (this - other).Length;
     public bool Equals(Point3 other) => X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z);
     public override bool Equals(object? obj) => obj is Point3 other && Equals(other);
-    public override int GetHashCode() => HashCode.Combine(X, Y, Z);
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            var hash = 17;
+            hash = (hash * 31) + X.GetHashCode();
+            hash = (hash * 31) + Y.GetHashCode();
+            hash = (hash * 31) + Z.GetHashCode();
+            return hash;
+        }
+    }
     public override string ToString() => $"({X:R}, {Y:R}, {Z:R})";
 }
 
@@ -69,7 +81,17 @@ public readonly struct Vector3 : IEquatable<Vector3>
     public double Length => Numeric.Length3(X, Y, Z);
     public bool Equals(Vector3 other) => X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z);
     public override bool Equals(object? obj) => obj is Vector3 other && Equals(other);
-    public override int GetHashCode() => HashCode.Combine(X, Y, Z);
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            var hash = 17;
+            hash = (hash * 31) + X.GetHashCode();
+            hash = (hash * 31) + Y.GetHashCode();
+            hash = (hash * 31) + Z.GetHashCode();
+            return hash;
+        }
+    }
 }
 
 public readonly struct BoundingBox3 : IEquatable<BoundingBox3>
@@ -89,5 +111,8 @@ public readonly struct BoundingBox3 : IEquatable<BoundingBox3>
         new Point3(Math.Max(first.X, second.X), Math.Max(first.Y, second.Y), Math.Max(first.Z, second.Z)));
     public bool Equals(BoundingBox3 other) => Min.Equals(other.Min) && Max.Equals(other.Max);
     public override bool Equals(object? obj) => obj is BoundingBox3 other && Equals(other);
-    public override int GetHashCode() => HashCode.Combine(Min, Max);
+    public override int GetHashCode()
+    {
+        unchecked { return (Min.GetHashCode() * 397) ^ Max.GetHashCode(); }
+    }
 }

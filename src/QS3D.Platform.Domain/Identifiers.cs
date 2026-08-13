@@ -35,7 +35,8 @@ public readonly struct CadHandle : IEquatable<CadHandle>, IComparable<CadHandle>
 {
     public CadHandle(string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("CAD handle must not be blank.", nameof(value));
         var token = value.Trim();
         foreach (var c in token)
         {
@@ -52,7 +53,7 @@ public readonly struct CadHandle : IEquatable<CadHandle>, IComparable<CadHandle>
     public override bool Equals(object? obj) => obj is CadHandle other && Equals(other);
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value ?? string.Empty);
     public int CompareTo(CadHandle other) => StringComparer.Ordinal.Compare(Value, other.Value);
-    public override string ToString() => Value;
+    public override string ToString() => Value ?? string.Empty;
     public static bool operator ==(CadHandle left, CadHandle right) => left.Equals(right);
     public static bool operator !=(CadHandle left, CadHandle right) => !left.Equals(right);
 }

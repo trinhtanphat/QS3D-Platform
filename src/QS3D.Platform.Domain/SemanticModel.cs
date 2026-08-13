@@ -1,3 +1,5 @@
+using QS3D.Platform.Geometry;
+
 namespace QS3D.Platform.Domain;
 
 public enum SemanticElementKind
@@ -17,9 +19,49 @@ public enum SemanticElementKind
     Finish
 }
 
-public sealed record Floor(FloorId Id, string Name, double ElevationM);
-public sealed record Zone(ZoneId Id, string Name);
-public sealed record Family(FamilyId Id, SemanticElementKind Kind, string Name);
+public sealed class Floor
+{
+    public Floor(FloorId id, string name, double elevationM)
+    {
+        if (id.Value == Guid.Empty) throw new ArgumentException("Floor ID must not be empty.", nameof(id));
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Floor name must not be blank.", nameof(name));
+        Id = id;
+        Name = name.Trim();
+        ElevationM = Numeric.RequireFinite(elevationM, nameof(elevationM));
+    }
+    public FloorId Id { get; }
+    public string Name { get; }
+    public double ElevationM { get; }
+}
+
+public sealed class Zone
+{
+    public Zone(ZoneId id, string name)
+    {
+        if (id.Value == Guid.Empty) throw new ArgumentException("Zone ID must not be empty.", nameof(id));
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Zone name must not be blank.", nameof(name));
+        Id = id;
+        Name = name.Trim();
+    }
+    public ZoneId Id { get; }
+    public string Name { get; }
+}
+
+public sealed class Family
+{
+    public Family(FamilyId id, SemanticElementKind kind, string name)
+    {
+        if (id.Value == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(id));
+        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Family name must not be blank.", nameof(name));
+        Id = id;
+        Kind = kind;
+        Name = name.Trim();
+    }
+    public FamilyId Id { get; }
+    public SemanticElementKind Kind { get; }
+    public string Name { get; }
+}
 
 public sealed class SemanticElement
 {
@@ -29,8 +71,9 @@ public sealed class SemanticElement
     public SemanticElement(ElementId id, SemanticElementKind kind, string name, FamilyId familyId)
     {
         if (id.Value == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(id));
+        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
         if (familyId.Value == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(familyId));
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Element name must not be blank.", nameof(name));
         Id = id;
         Kind = kind;
         Name = name.Trim();
@@ -59,8 +102,8 @@ public sealed class SemanticElement
 
     public void SetProperty(string key, string value)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-        ArgumentNullException.ThrowIfNull(value);
+        if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Property key must not be blank.", nameof(key));
+        if (value is null) throw new ArgumentNullException(nameof(value));
         _properties[key.Trim()] = value;
     }
 }
@@ -75,7 +118,7 @@ public sealed class SemanticProject
     public SemanticProject(ProjectId id, string name)
     {
         if (id.Value == Guid.Empty) throw new ArgumentException("Project ID must not be empty.", nameof(id));
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Project name must not be blank.", nameof(name));
         Id = id;
         Name = name.Trim();
     }
@@ -87,12 +130,27 @@ public sealed class SemanticProject
     public IReadOnlyCollection<Family> Families => _families.Values;
     public IReadOnlyCollection<SemanticElement> Elements => _elements.Values;
 
-    public void AddFloor(Floor floor) => _floors.Add(floor.Id, floor);
-    public void AddZone(Zone zone) => _zones.Add(zone.Id, zone);
-    public void AddFamily(Family family) => _families.Add(family.Id, family);
+    public void AddFloor(Floor floor)
+    {
+        if (floor is null) throw new ArgumentNullException(nameof(floor));
+        _floors.Add(floor.Id, floor);
+    }
+
+    public void AddZone(Zone zone)
+    {
+        if (zone is null) throw new ArgumentNullException(nameof(zone));
+        _zones.Add(zone.Id, zone);
+    }
+
+    public void AddFamily(Family family)
+    {
+        if (family is null) throw new ArgumentNullException(nameof(family));
+        _families.Add(family.Id, family);
+    }
 
     public void AddElement(SemanticElement element)
     {
+        if (element is null) throw new ArgumentNullException(nameof(element));
         if (!_families.ContainsKey(element.FamilyId))
             throw new InvalidOperationException("Element family must belong to the project before the element is added.");
         _elements.Add(element.Id, element);

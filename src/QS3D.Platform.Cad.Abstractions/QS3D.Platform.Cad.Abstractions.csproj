@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <PropertyGroup><TargetFramework>netstandard2.0</TargetFramework></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\QS3D.Platform.Domain\QS3D.Platform.Domain.csproj" />
     <ProjectReference Include="..\QS3D.Platform.Geometry\QS3D.Platform.Geometry.csproj" />

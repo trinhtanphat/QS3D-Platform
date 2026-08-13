@@ -46,11 +46,12 @@ public sealed class CommandRegistry
 
     public void Register(ICadCommand command)
     {
-        ArgumentNullException.ThrowIfNull(command);
-        ArgumentException.ThrowIfNullOrWhiteSpace(command.Name);
+        if (command is null) throw new ArgumentNullException(nameof(command));
+        if (string.IsNullOrWhiteSpace(command.Name)) throw new ArgumentException("Command name must not be blank.", nameof(command));
         var name = command.Name.Trim();
-        if (!_commands.TryAdd(name, command))
+        if (_commands.ContainsKey(name))
             throw new InvalidOperationException($"Command '{name}' is already registered.");
+        _commands.Add(name, command);
     }
 
     public bool TryResolve(string name, out ICadCommand? command)
@@ -61,6 +62,7 @@ public sealed class CommandRegistry
 
     public CommandResult Execute(string name, CommandContext context)
     {
+        if (context is null) throw new ArgumentNullException(nameof(context));
         if (!TryResolve(name, out var command) || command is null)
             return CommandResult.Failure($"Unknown command '{name}'.");
         context.CancellationToken.ThrowIfCancellationRequested();
