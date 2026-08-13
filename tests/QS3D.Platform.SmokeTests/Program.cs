@@ -1,14 +1,19 @@
 using QS3D.Platform.Application;
 using QS3D.Platform.Cad.Abstractions;
+using QS3D.Platform.Diagnostics;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
 using QS3D.Platform.InMemory;
+using QS3D.Platform.Quantity;
 
 var tests = new (string Name, Action Run)[]
 {
     ("finite numeric policy", FiniteNumericPolicy),
     ("CAD handle canonicality", CadHandleCanonicality),
     ("semantic generated-reference identity", SemanticReferenceIdentity),
+    ("semantic family kind invariant", SemanticFamilyKindInvariant),
+    ("semantic health references", SemanticHealthReferences),
+    ("quantity accumulation", QuantityAccumulation),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("stale transaction fails closed", StaleTransactionFailsClosed),
     ("undo redo preserves drawing state", UndoRedoPreservesDrawingState),
@@ -43,6 +48,52 @@ static void SemanticReferenceIdentity()
     var drawing = DrawingId.New();
     Require(element.AddGeneratedReference(new CadReference(drawing, new CadHandle("A"))), "first reference must be added");
     Require(!element.AddGeneratedReference(new CadReference(drawing, new CadHandle("000a"))), "canonical alias must deduplicate");
+}
+
+static void SemanticFamilyKindInvariant()
+{
+    var family = new Family(FamilyId.New(), SemanticElementKind.Wall, "Wall");
+    var project = new SemanticProject(ProjectId.New(), "Demo");
+    project.AddFamily(family);
+    var incompatible = new SemanticElement(ElementId.New(), SemanticElementKind.Beam, "B1", family.Id);
+    Throws<InvalidOperationException>(() => project.AddElement(incompatible));
+}
+
+static void SemanticHealthReferences()
+{
+    var family = new Family(FamilyId.New(), SemanticElementKind.Wall, "Wall");
+    var project = new SemanticProject(ProjectId.New(), "Health");
+    project.AddFamily(family);
+    var element = new SemanticElement(ElementId.New(), SemanticElementKind.Wall, "W1", family.Id);
+    element.AssignLocation(FloorId.New(), ZoneId.New());
+    project.AddElement(element);
+    var report = SemanticHealthAnalyzer.Analyze(project);
+    Require(!report.IsReady, "missing floor and zone references must block readiness");
+    Equal(2, report.ErrorCount);
+    Equal(1, report.WarningCount);
+    Require(report.Findings.Any(static x => x.Code == "SEM_FLOOR_MISSING"), "missing floor finding expected");
+    Require(report.Findings.Any(static x => x.Code == "SEM_ZONE_MISSING"), "missing zone finding expected");
+}
+
+static void QuantityAccumulation()
+{
+    var first = ElementId.New();
+    var second = ElementId.New();
+    var facts = new[]
+    {
+        new QuantityFact(first, "WALL.LENGTH", new QuantityValue(QuantityDimension.Length, 1.25)),
+        new QuantityFact(first, "WALL.LENGTH", new QuantityValue(QuantityDimension.Length, 2.75)),
+        new QuantityFact(second, "WALL.LENGTH", new QuantityValue(QuantityDimension.Length, 3.0)),
+        new QuantityFact(second, "WALL.AREA", new QuantityValue(QuantityDimension.Area, 12.5))
+    };
+    var summaries = QuantityAccumulator.Summarize(facts);
+    Equal(2, summaries.Count);
+    var length = summaries.Single(static x => x.Code == "WALL.LENGTH");
+    Equal(7d, length.Quantity.Value);
+    Equal(3, length.FactCount);
+    Equal(2, length.ElementCount);
+    Equal("m", length.Quantity.CanonicalUnit);
+    Throws<ArgumentOutOfRangeException>(() => _ = new QuantityValue(QuantityDimension.Volume, -1));
 }
 
 static void TransactionRollbackAndCommit()

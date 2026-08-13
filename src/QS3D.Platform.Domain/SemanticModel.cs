@@ -130,6 +130,10 @@ public sealed class SemanticProject
     public IReadOnlyCollection<Family> Families => _families.Values;
     public IReadOnlyCollection<SemanticElement> Elements => _elements.Values;
 
+    public bool ContainsFloor(FloorId id) => _floors.ContainsKey(id);
+    public bool ContainsZone(ZoneId id) => _zones.ContainsKey(id);
+    public bool TryGetFamily(FamilyId id, out Family? family) => _families.TryGetValue(id, out family);
+
     public void AddFloor(Floor floor)
     {
         if (floor is null) throw new ArgumentNullException(nameof(floor));
@@ -151,8 +155,10 @@ public sealed class SemanticProject
     public void AddElement(SemanticElement element)
     {
         if (element is null) throw new ArgumentNullException(nameof(element));
-        if (!_families.ContainsKey(element.FamilyId))
+        if (!_families.TryGetValue(element.FamilyId, out var family))
             throw new InvalidOperationException("Element family must belong to the project before the element is added.");
+        if (family.Kind != element.Kind)
+            throw new InvalidOperationException($"Element kind {element.Kind} does not match family kind {family.Kind}.");
         _elements.Add(element.Id, element);
     }
 }

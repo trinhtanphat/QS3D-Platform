@@ -14,6 +14,8 @@ See [`PLANNING.md`](PLANNING.md) for the master architecture and roadmap.
 - `QS3D.Platform.Domain` (`netstandard2.0`) — canonical IDs, CAD references and semantic BIM/QS state.
 - `QS3D.Platform.Cad.Abstractions` (`netstandard2.0`) — document/database/transaction/editor/selection contracts.
 - `QS3D.Platform.Application` (`netstandard2.0`) — command registry and host-neutral command execution.
+- `QS3D.Platform.Quantity` (`netstandard2.0`) — deterministic SI quantity facts and aggregation with source/element traceability.
+- `QS3D.Platform.Diagnostics` (`netstandard2.0`) — host-neutral semantic model health/readiness diagnostics.
 - `QS3D.Platform.InMemory` (`net8.0`) — deterministic non-production adapter used for contract development/tests.
 - `QS3D.Platform.SmokeTests` (`net8.0`) — dependency-free executable regression suite.
 
