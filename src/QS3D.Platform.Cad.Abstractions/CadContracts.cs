@@ -16,7 +16,8 @@ public enum CadCapabilities
     NativeSolids = 1 << 6,
     BooleanSolids = 1 << 7,
     ObjectSnaps = 1 << 8,
-    Grips = 1 << 9
+    Grips = 1 << 9,
+    Layers = 1 << 10
 }
 
 public enum CadEntityKind
@@ -47,8 +48,9 @@ public enum CadTransactionMode
     ReadWrite
 }
 
-public sealed record CadEntityDraft(CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string>? Properties = null);
-public sealed record CadEntitySnapshot(CadHandle Handle, CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string> Properties);
+public sealed record CadLayerSnapshot(string Name, bool IsOn = true, bool IsFrozen = false, bool IsLocked = false);
+public sealed record CadEntityDraft(CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string>? Properties = null, string? LayerName = null);
+public sealed record CadEntitySnapshot(CadHandle Handle, CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string> Properties, string LayerName = "0");
 
 public interface ICadHistory
 {
@@ -61,11 +63,18 @@ public interface ICadHistory
 public interface ICadTransaction : IDisposable
 {
     CadTransactionMode Mode { get; }
+    string CurrentLayerName { get; }
     CadEntitySnapshot? Get(CadHandle handle);
     IReadOnlyList<CadEntitySnapshot> Query();
+    IReadOnlyList<CadLayerSnapshot> GetLayers();
+    CadLayerSnapshot? GetLayer(string name);
     CadHandle Append(CadEntityDraft draft);
     void Update(CadEntitySnapshot entity);
     void Erase(CadHandle handle);
+    void CreateLayer(string name);
+    void UpdateLayer(CadLayerSnapshot layer);
+    void EraseLayer(string name);
+    void SetCurrentLayer(string name);
     void Commit();
 }
 

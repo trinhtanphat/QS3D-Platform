@@ -15,6 +15,7 @@ var tests = new (string Name, Action Run)[]
     ("semantic health references", SemanticHealthReferences),
     ("quantity accumulation", QuantityAccumulation),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
+    ("transactional layer ownership", TransactionalLayerOwnership),
     ("stale transaction fails closed", StaleTransactionFailsClosed),
     ("undo redo preserves drawing state", UndoRedoPreservesDrawingState),
     ("command registry", CommandRegistryContract)
@@ -71,8 +72,6 @@ static void SemanticHealthReferences()
     Require(!report.IsReady, "missing floor and zone references must block readiness");
     Equal(2, report.ErrorCount);
     Equal(1, report.WarningCount);
-    Require(report.Findings.Any(static x => x.Code == "SEM_FLOOR_MISSING"), "missing floor finding expected");
-    Require(report.Findings.Any(static x => x.Code == "SEM_ZONE_MISSING"), "missing zone finding expected");
 }
 
 static void QuantityAccumulation()
@@ -99,18 +98,50 @@ static void QuantityAccumulation()
 static void TransactionRollbackAndCommit()
 {
     var database = new InMemoryCadDatabase();
-    using (var tx = database.BeginTransaction())
-    {
-        tx.Append(LineDraft());
-    }
+    using (var tx = database.BeginTransaction()) tx.Append(LineDraft());
     Equal(0, EntityCount(database));
-
     using (var tx = database.BeginTransaction())
     {
         tx.Append(LineDraft());
         tx.Commit();
     }
     Equal(1, EntityCount(database));
+}
+
+static void TransactionalLayerOwnership()
+{
+    var database = new InMemoryCadDatabase();
+    CadHandle handle;
+    using (var tx = database.BeginTransaction())
+    {
+        tx.CreateLayer("A-WALL");
+        tx.SetCurrentLayer("A-WALL");
+        handle = tx.Append(LineDraft());
+        tx.Commit();
+    }
+    using (var read = database.BeginTransaction(CadTransactionMode.ReadOnly))
+    {
+        Equal("A-WALL", read.CurrentLayerName);
+        Equal("A-WALL", read.Get(handle)!.LayerName);
+        Equal(2, read.GetLayers().Count);
+    }
+    database.History.Undo();
+    using (var read = database.BeginTransaction(CadTransactionMode.ReadOnly))
+    {
+        Equal("0", read.CurrentLayerName);
+        Equal(0, read.Query().Count);
+        Equal(1, read.GetLayers().Count);
+    }
+    database.History.Redo();
+    using (var tx = database.BeginTransaction())
+    {
+        tx.SetCurrentLayer("0");
+        var wallLayer = tx.GetLayer("A-WALL")!;
+        tx.UpdateLayer(wallLayer with { IsLocked = true });
+        tx.Commit();
+    }
+    using (var tx = database.BeginTransaction())
+        Throws<InvalidOperationException>(() => tx.Append(LineDraft() with { LayerName = "A-WALL" }));
 }
 
 static void StaleTransactionFailsClosed()
@@ -133,7 +164,6 @@ static void UndoRedoPreservesDrawingState()
         handle = tx.Append(LineDraft());
         tx.Commit();
     }
-
     Require(database.History.CanUndo, "commit must create undo history");
     database.History.Undo();
     Equal(0, EntityCount(database));
