@@ -20,8 +20,9 @@ public sealed class SemanticSnapshotMigrator
             if (step is null) throw new ArgumentException("Migration chain must not contain null steps.", nameof(steps));
             if (step.FromVersion < 1) throw new ArgumentOutOfRangeException(nameof(steps), "Migration source version must be positive.");
             if (step.ToVersion <= step.FromVersion) throw new ArgumentException("Migration target version must be greater than source version.", nameof(steps));
-            if (!_steps.TryAdd(step.FromVersion, step))
+            if (_steps.ContainsKey(step.FromVersion))
                 throw new InvalidOperationException($"Multiple semantic migrations start from schema {step.FromVersion}.");
+            _steps.Add(step.FromVersion, step);
         }
     }
 
