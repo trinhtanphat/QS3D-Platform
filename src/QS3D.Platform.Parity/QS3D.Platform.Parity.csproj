@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>netstandard2.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QS3D.Platform.Diagnostics\QS3D.Platform.Diagnostics.csproj" />
+    <ProjectReference Include="..\QS3D.Platform.Domain\QS3D.Platform.Domain.csproj" />
+    <ProjectReference Include="..\QS3D.Platform.Persistence\QS3D.Platform.Persistence.csproj" />
+    <ProjectReference Include="..\QS3D.Platform.Quantity\QS3D.Platform.Quantity.csproj" />
+  </ItemGroup>
+</Project>
