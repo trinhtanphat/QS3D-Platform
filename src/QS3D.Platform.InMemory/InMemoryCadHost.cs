@@ -24,7 +24,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         foreach (var entity in entities)
         {
             ArgumentNullException.ThrowIfNull(entity);
-            var clone = entity with { Properties = new Dictionary<string, string>(entity.Properties, StringComparer.Ordinal) };
+            var clone = entity with { Properties = CloneProperties(entity.Properties) };
             if (!_entities.TryAdd(entity.Handle, clone))
                 throw new InvalidOperationException($"Duplicate CAD handle {entity.Handle} in snapshot.");
             var numericHandle = ulong.Parse(entity.Handle.Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
@@ -95,7 +95,15 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
     {
         var result = new Dictionary<CadHandle, CadEntitySnapshot>();
         foreach (var pair in source)
-            result.Add(pair.Key, pair.Value with { Properties = new Dictionary<string, string>(pair.Value.Properties, StringComparer.Ordinal) });
+            result.Add(pair.Key, pair.Value with { Properties = CloneProperties(pair.Value.Properties) });
+        return result;
+    }
+
+    private static Dictionary<string, string> CloneProperties(IReadOnlyDictionary<string, string> source)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var pair in source)
+            result.Add(pair.Key, pair.Value);
         return result;
     }
 
@@ -142,7 +150,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             _nextHandle = _nextHandle == ulong.MaxValue ? 0 : _nextHandle + 1;
             var properties = draft.Properties is null
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : new Dictionary<string, string>(draft.Properties, StringComparer.Ordinal);
+                : CloneProperties(draft.Properties);
             _working!.Add(handle, new CadEntitySnapshot(handle, draft.Kind, draft.Extents, properties));
             _changed = true;
             return handle;
@@ -154,7 +162,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
             ArgumentNullException.ThrowIfNull(entity);
             if (!_working!.ContainsKey(entity.Handle))
                 throw new KeyNotFoundException($"Entity {entity.Handle} does not exist.");
-            _working[entity.Handle] = entity with { Properties = new Dictionary<string, string>(entity.Properties, StringComparer.Ordinal) };
+            _working[entity.Handle] = entity with { Properties = CloneProperties(entity.Properties) };
             _changed = true;
         }
 
