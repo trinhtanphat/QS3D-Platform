@@ -14,6 +14,7 @@ SHARED_PROJECTS = [
     "QS3D.Platform.Application",
     "QS3D.Platform.Quantity",
     "QS3D.Platform.Diagnostics",
+    "QS3D.Platform.Persistence",
 ]
 
 FORBIDDEN_SOURCE_TOKENS = [
@@ -30,10 +31,7 @@ FORBIDDEN_SOURCE_TOKENS = [
     "PresentationFramework",
 ]
 
-FORBIDDEN_BINARY_SUFFIXES = {
-    ".dll", ".exe", ".lib", ".a", ".so", ".dylib", ".pdb", ".nupkg"
-}
-
+FORBIDDEN_BINARY_SUFFIXES = {".dll", ".exe", ".lib", ".a", ".so", ".dylib", ".pdb", ".nupkg"}
 errors: list[str] = []
 
 
@@ -66,6 +64,16 @@ in_memory = SRC / "QS3D.Platform.InMemory" / "QS3D.Platform.InMemory.csproj"
 if not in_memory.is_file() or "<TargetFramework>net8.0</TargetFramework>" not in in_memory.read_text(encoding="utf-8"):
     fail("QS3D.Platform.InMemory must remain the net8.0 non-production adapter")
 
+for source in [
+    "InMemoryCadHost.cs",
+    "InMemoryViewportService.cs",
+    "InMemorySnapService.cs",
+    "InMemorySpatialSelectionService.cs",
+    "InMemoryAdvancedServices.cs",
+]:
+    if not (SRC / "QS3D.Platform.InMemory" / source).is_file():
+        fail(f"missing deterministic in-memory reference surface: src/QS3D.Platform.InMemory/{source}")
+
 smoke = ROOT / "tests" / "QS3D.Platform.SmokeTests" / "QS3D.Platform.SmokeTests.csproj"
 if not smoke.is_file():
     fail("missing deterministic Platform smoke project")
@@ -76,13 +84,22 @@ else:
         "QS3D.Platform.Cad.Abstractions",
         "QS3D.Platform.Quantity",
         "QS3D.Platform.Diagnostics",
+        "QS3D.Platform.Persistence",
         "QS3D.Platform.InMemory",
     ]:
         if required not in smoke_text:
             fail(f"smoke project must reference {required}")
 
-planning = ROOT / "PLANNING.md"
-if not planning.is_file():
+for regression in [
+    "InMemoryViewportSnapModuleSmoke.cs",
+    "InMemorySpatialSelectionModuleSmoke.cs",
+    "InMemoryAdvancedServicesRegistryModuleSmoke.cs",
+    "PersistenceSnapshotModuleSmoke.cs",
+]:
+    if not (ROOT / "tests" / "QS3D.Platform.SmokeTests" / regression).is_file():
+        fail(f"missing Platform regression module: tests/QS3D.Platform.SmokeTests/{regression}")
+
+if not (ROOT / "PLANNING.md").is_file():
     fail("PLANNING.md is required at repository root")
 
 if errors:
@@ -92,4 +109,4 @@ if errors:
     raise SystemExit(1)
 
 print("QS3D Platform preflight PASS")
-print(f"checked {len(SHARED_PROJECTS)} shared netstandard2.0 projects and vendor-neutral source boundaries")
+print(f"checked {len(SHARED_PROJECTS)} shared netstandard2.0 projects, deterministic reference surfaces and vendor-neutral boundaries")
