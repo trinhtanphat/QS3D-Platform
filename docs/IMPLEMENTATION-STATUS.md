@@ -7,7 +7,7 @@
 
 ## Implemented shared foundation
 
-- `netstandard2.0` shared boundary for BricsCAD V25/net48 consumption: Geometry, Domain, CAD Abstractions, Application, Quantity, Diagnostics and Persistence.
+- `netstandard2.0` shared boundary for BricsCAD V25/net48 consumption: Geometry, Domain, CAD Abstractions, Application, Quantity, Diagnostics, Persistence and Parity.
 - Finite numeric/geometry primitives, explicit tolerance/unit policies and canonical hexadecimal CAD handles.
 - Project/floor/zone/family/element identities and semantic model with family-kind/location/CAD-reference invariants.
 - Host-neutral CAD document/database/transaction/editor/selection/layer/static-block contracts.
@@ -16,6 +16,7 @@
 - Model-health diagnostics including missing semantic references and canonical CAD source/generated ownership conflicts.
 - Schema-neutral semantic snapshots, deterministic capture/restore, migration chains and project-container manifest/integrity contracts.
 - Module semantic versions, dependency ranges, deterministic load planning and cycle/missing/version fail-closed behavior.
+- Cross-product golden parity fixture model/runner. A fixture carries a shared semantic snapshot, quantity rules and expected readiness/quantity results; the runner restores through shared Persistence and evaluates shared Diagnostics/Quantity. Platform smoke verifies canonical handle normalization and `2500 mm × 3000 mm = 7.5 m²`, and QS3D-CAD smoke consumes the same runner from standalone command-generated state.
 - Reusable CAD adapter conformance harness for transaction/layer/block invariants.
 - Source guards for vendor-neutral boundaries and `netstandard2.0` compatibility.
 
@@ -52,13 +53,7 @@ Those belong to product adapters. Reference Xref/Layout/Plot implementations abo
 
 ## Validation/source gates
 
-`scripts/validate.sh` is the authoritative Platform validation entry point when a .NET toolchain is available. It runs:
-
-1. vendor-neutral Platform preflight;
-2. `netstandard2.0` API/dependency boundary checks;
-3. deterministic reference-service source gate;
-4. Release solution build;
-5. deterministic Platform smoke executable.
+`scripts/validate.sh` is the normal Platform validation entry point when a .NET toolchain is available. It currently runs vendor-neutral preflight, the `netstandard2.0` boundary, reference-service gate, Release build and deterministic smoke. `scripts/check-parity.py` separately guards the Parity project/solution/smoke wiring; attempts to add that one line to `validate.sh` in this session were blocked by the repository write safety gateway, so do not assume the parity source gate is automatically invoked until `validate.sh` visibly contains it.
 
 The reference-services gate requires viewport/snap/spatial/Xref/Layout/Plot source and regression modules, enforces the weak document registry, and prevents the reference plot recorder from claiming native output success.
 
@@ -67,7 +62,7 @@ The reference-services gate requires viewport/snap/spatial/Xref/Layout/Plot sour
 An adapter may advertise a `CadCapabilities` bit only when its implementation and evidence satisfy the corresponding contract. Evidence levels remain separate:
 
 1. source/preflight;
-2. deterministic Platform/reference tests;
+2. deterministic Platform/reference/parity tests;
 3. adapter conformance tests;
 4. exact product-SHA/backend-version native runtime tests;
 5. file-format round-trip/performance/release qualification.
@@ -78,19 +73,19 @@ An adapter may advertise a `CadCapabilities` bit only when its implementation an
 
 `QS3D-BricsCAD` remains authoritative for production plugin behavior until individual Platform migration slices have parity evidence. The migration remains incremental; the existence of Platform does not authorize big-bang deletion of `QS3D.Core`.
 
-Shared foundations now available for migration include canonical IDs/handles, finite/unit/tolerance policies, semantic project state, quantity/BQ/schedules, dependency/dirty planning, persistence snapshots/migrations, readiness diagnostics and adapter conformance contracts.
+Shared foundations now available for migration include canonical IDs/handles, finite/unit/tolerance policies, semantic project state, quantity/BQ/schedules, dependency/dirty planning, persistence snapshots/migrations, readiness diagnostics, golden parity fixtures and adapter conformance contracts.
 
 ## Remaining host-neutral backlog
 
 Useful work that can continue without a native DWG SDK is now narrower:
 
-- cross-product golden fixture specifications and canonical fixture serialization for BricsCAD/standalone parity;
 - richer family/parametric schema contracts and deterministic family-version migration fixtures;
 - semantic authoring/parity helpers shared by hosted and standalone products where behavior is already established;
 - stronger compatibility fixtures for snapshot/container migration and forward/backward rejection behavior;
 - extension/plugin packaging metadata and host-neutral registration contracts without implementing vendor/native dynamic loading;
 - shared backend capability/evidence vocabulary where it can remain product-neutral;
-- broader model-health rules that derive only from host-neutral semantic/reference state.
+- broader model-health rules that derive only from host-neutral semantic/reference state;
+- canonical serialization/export for golden fixtures if a stable cross-repository artifact format is needed.
 
 ## Native-blocked backlog
 
@@ -110,4 +105,4 @@ These require a real product adapter/runtime and remain outside Platform referen
 
 ## Current evidence status
 
-No `BUILD_PASS` is claimed by this document. GitHub Actions capacity was previously exhausted before useful runner execution, and the current conversation execution environment has no usable .NET compiler/SDK. Current claims therefore remain source implementation + static review + authored deterministic regression coverage until `scripts/validate.sh` succeeds on a real toolchain.
+No `BUILD_PASS` is claimed by this document. GitHub Actions capacity was previously exhausted before useful runner execution, and the current conversation execution environment has no usable .NET compiler/SDK. Current claims therefore remain source implementation + static review + authored deterministic regression coverage until the validation entry points succeed on a real toolchain.
