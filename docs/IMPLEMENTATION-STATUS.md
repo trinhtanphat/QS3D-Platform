@@ -2,104 +2,112 @@
 
 **Date:** 2026-08-13 (UTC+7)  
 **Repository role:** vendor-neutral shared QS3D domain/contracts  
-**Rule:** source presence and deterministic in-memory tests are not native CAD runtime qualification.
+**Evidence state:** `SOURCE_READY / PENDING_BUILD_EVIDENCE`  
+**Rule:** source presence and deterministic reference behavior are not native CAD runtime qualification.
 
 ## Implemented shared foundation
 
-- `netstandard2.0` shared target for BricsCAD V25/net48 compatibility.
-- Finite numeric/geometry value objects.
-- Project/floor/zone/family/element IDs and canonical hexadecimal CAD handles.
-- Drawing + stable-handle CAD references.
-- Semantic project/floor/zone/family/element model.
-- Family-kind invariant and generated/source reference ownership primitives.
-- Host-neutral CAD document/database/transaction/editor/selection contracts.
-- Optimistic transaction revision checks.
-- Undo/redo contract.
-- Layer table/current layer/entity ownership contract.
-- Static block definition/reference contract including uniform scale + Z rotation insertion semantics.
-- Command registry/application command context.
-- Quantity dimensions, canonical SI units, traceable facts and deterministic aggregation.
-- Semantic model-health diagnostics for missing family/floor/zone/CAD reference state.
-- Advanced optional host contracts for viewport/hit-test, OSNAP, Xrefs, layouts, plotting and spatial selection.
-- Deterministic dependency impact graph with cycle fail-closed behavior.
-- Revision-safe dirty/freshness tracker with downstream propagation and stale-regeneration protection.
-- Non-production in-memory CAD adapter for contract development.
-- Deterministic smoke executable plus module-initializer regression surfaces.
-- Reusable database conformance smoke that tests advertised transaction/layer/block invariants.
-- Vendor-neutral source preflight.
+- `netstandard2.0` shared boundary for BricsCAD V25/net48 consumption: Geometry, Domain, CAD Abstractions, Application, Quantity, Diagnostics and Persistence.
+- Finite numeric/geometry primitives, explicit tolerance/unit policies and canonical hexadecimal CAD handles.
+- Project/floor/zone/family/element identities and semantic model with family-kind/location/CAD-reference invariants.
+- Host-neutral CAD document/database/transaction/editor/selection/layer/static-block contracts.
+- Command registry/application context, dependency planning, dirty/freshness propagation and stale-regeneration guards.
+- Quantity dimensions/units, deterministic property-based rule evaluation, facts/aggregation, cost/BQ/schedule projections and deterministic CSV projection.
+- Model-health diagnostics including missing semantic references and canonical CAD source/generated ownership conflicts.
+- Schema-neutral semantic snapshots, deterministic capture/restore, migration chains and project-container manifest/integrity contracts.
+- Module semantic versions, dependency ranges, deterministic load planning and cycle/missing/version fail-closed behavior.
+- Reusable CAD adapter conformance harness for transaction/layer/block invariants.
+- Source guards for vendor-neutral boundaries and `netstandard2.0` compatibility.
+
+## Deterministic reference services implemented
+
+`QS3D.Platform.InMemory` is a non-production `net8.0` reference adapter used to exercise contracts without a proprietary/native CAD SDK. It includes:
+
+- in-memory document/database/transaction/history/layer/block behavior;
+- viewport state, zoom-extents/window, deterministic AABB hit testing and invalidation bookkeeping;
+- supported reference snaps such as endpoint, midpoint, center, quadrant and nearest;
+- XY polygon window/crossing reference selection;
+- Xref attach/reload/unload/detach lifecycle with deterministic loaded/missing status resolution;
+- Model/paper-layout reference lifecycle with current-layout and deletion guards;
+- deliberately non-producing plot recorder: a reference plot request is recorded but returns no native output success/path;
+- document-scoped `InMemoryAdvancedServicesRegistry` backed by `ConditionalWeakTable`, preventing the reference registry itself from retaining closed/unreferenced documents.
+
+These implementations exist to prove API semantics and deterministic regressions. They do **not** qualify `CadCapabilities` for a production native adapter.
 
 ## Deliberately not implemented in Platform
 
-Platform must not contain:
+Platform must not contain or claim:
 
-- BricsCAD/AutoCAD/ODA proprietary types;
-- a DWG parser/database implementation;
-- a GPU renderer;
-- a B-Rep/native solid kernel;
-- WPF/desktop host UI;
-- native Xref/layout/plot implementations;
-- vendor SDK binaries;
+- BricsCAD/AutoCAD/ODA proprietary types or redistributed vendor SDK binaries;
+- a DWG/DXF parser/database implementation;
+- a production GPU renderer/device;
+- a native geometry/B-Rep/topology kernel;
+- WPF/desktop product UI;
+- native Xref resolution against a real drawing database;
+- native page setup/printing/PDF output;
+- native 3D solids/booleans;
 - runtime object pointers as persisted identity.
 
-Those belong to product adapters.
+Those belong to product adapters. Reference Xref/Layout/Plot implementations above are intentionally not native implementations.
+
+## Validation/source gates
+
+`scripts/validate.sh` is the authoritative Platform validation entry point when a .NET toolchain is available. It runs:
+
+1. vendor-neutral Platform preflight;
+2. `netstandard2.0` API/dependency boundary checks;
+3. deterministic reference-service source gate;
+4. Release solution build;
+5. deterministic Platform smoke executable.
+
+The reference-services gate requires viewport/snap/spatial/Xref/Layout/Plot source and regression modules, enforces the weak document registry, and prevents the reference plot recorder from claiming native output success.
 
 ## Adapter qualification model
 
-An adapter may advertise a `CadCapabilities` bit only when its implementation and tests satisfy the corresponding contract. Optional advanced service interfaces do not automatically enable a capability.
-
-Evidence levels remain separate:
+An adapter may advertise a `CadCapabilities` bit only when its implementation and evidence satisfy the corresponding contract. Evidence levels remain separate:
 
 1. source/preflight;
-2. deterministic Platform tests;
+2. deterministic Platform/reference tests;
 3. adapter conformance tests;
-4. exact host/native runtime tests;
+4. exact product-SHA/backend-version native runtime tests;
 5. file-format round-trip/performance/release qualification.
 
-## GitHub Actions note
-
-A Platform Actions build was attempted after the CI workflow was added. GitHub rejected the job before a runner started because the account had exhausted included Actions minutes. That run is therefore **not a compiler/test failure and not a PASS**. Local/other-runner validation remains required until Actions capacity is restored.
+`REFERENCE_PASS` must never be promoted to native or production qualification.
 
 ## BricsCAD migration status
 
-`QS3D-BricsCAD` remains authoritative for production plugin behavior until each migration slice has parity evidence. See that repository's `docs/QS3D-PLATFORM-MIGRATION.md`.
+`QS3D-BricsCAD` remains authoritative for production plugin behavior until individual Platform migration slices have parity evidence. The migration remains incremental; the existence of Platform does not authorize big-bang deletion of `QS3D.Core`.
 
-Priority shared migration order:
+Shared foundations now available for migration include canonical IDs/handles, finite/unit/tolerance policies, semantic project state, quantity/BQ/schedules, dependency/dirty planning, persistence snapshots/migrations, readiness diagnostics and adapter conformance contracts.
 
-1. IDs/handles/finite units/geometry facts;
-2. semantic project/floor/zone/family/element state;
-3. quantity/formula/cost/report projections;
-4. dependency/dirty/regeneration planning;
-5. persistence compatibility rules;
-6. adapter conformance.
+## Remaining host-neutral backlog
 
-No big-bang deletion of `QS3D.Core` is authorized by the existence of this repository.
+Useful work that can continue without a native DWG SDK is now narrower:
 
-## Next host-neutral implementation backlog
-
-These can continue without a native DWG SDK, provided parity with established QS3D behavior is proved:
-
-- richer unit/tolerance policy;
-- quantity formulas/rule catalog;
-- cost/BQ/schedule projections;
-- semantic dependency identity adapters;
-- project persistence schema-neutral models;
-- model-health rule expansion;
-- cross-product golden fixture definitions;
-- plugin/extension contracts;
-- project/family version migration contracts.
+- cross-product golden fixture specifications and canonical fixture serialization for BricsCAD/standalone parity;
+- richer family/parametric schema contracts and deterministic family-version migration fixtures;
+- semantic authoring/parity helpers shared by hosted and standalone products where behavior is already established;
+- stronger compatibility fixtures for snapshot/container migration and forward/backward rejection behavior;
+- extension/plugin packaging metadata and host-neutral registration contracts without implementing vendor/native dynamic loading;
+- shared backend capability/evidence vocabulary where it can remain product-neutral;
+- broader model-health rules that derive only from host-neutral semantic/reference state.
 
 ## Native-blocked backlog
 
-These require a real product adapter/runtime:
+These require a real product adapter/runtime and remain outside Platform reference evidence:
 
-- DWG read/write fidelity;
-- true entity geometry extraction/editing;
-- GPU viewport;
-- native OSNAP/grips;
-- Xrefs;
-- layouts/plot/PDF;
+- DWG/DXF read/write and round-trip fidelity;
+- native entity geometry extraction/editing;
+- GPU viewport/device behavior;
+- true intersection/tangent/perpendicular OSNAP and grips;
+- native Xrefs;
+- native layouts/page setup/plot/PDF;
 - native 3D primitives/B-Rep/booleans;
 - real large-drawing performance;
-- clean-machine installers and runtime qualification.
+- clean-machine installers/signing/runtime qualification.
 
-The standalone product tracks those gates in `QS3D-CAD/docs/NATIVE-SDK-INTEGRATION-CHECKLIST.md`.
+`QS3D-CAD/docs/LOCAL-NATIVE-QUALIFICATION.md` and `docs/NATIVE-SDK-INTEGRATION-CHECKLIST.md` define the standalone native evidence lane.
+
+## Current evidence status
+
+No `BUILD_PASS` is claimed by this document. GitHub Actions capacity was previously exhausted before useful runner execution, and the current conversation execution environment has no usable .NET compiler/SDK. Current claims therefore remain source implementation + static review + authored deterministic regression coverage until `scripts/validate.sh` succeeds on a real toolchain.
