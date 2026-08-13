@@ -3,20 +3,47 @@ using QS3D.Platform.Domain;
 
 namespace QS3D.Platform.InMemory;
 
-public sealed class InMemoryCadDatabase : ICadDatabase
+public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
 {
     private readonly object _sync = new();
+    private readonly Stack<DatabaseState> _undo = new();
+    private readonly Stack<DatabaseState> _redo = new();
     private Dictionary<CadHandle, CadEntitySnapshot> _entities = new();
     private long _nextHandle = 1;
     private long _revision;
 
     public CadCapabilities Capabilities => CadCapabilities.TwoDimensional | CadCapabilities.Blocks | CadCapabilities.Layouts;
     public long Revision { get { lock (_sync) return _revision; } }
+    public ICadHistory History => this;
+    public bool CanUndo { get { lock (_sync) return _undo.Count != 0; } }
+    public bool CanRedo { get { lock (_sync) return _redo.Count != 0; } }
 
     public ICadTransaction BeginTransaction(CadTransactionMode mode = CadTransactionMode.ReadWrite)
     {
         lock (_sync)
-            return new Transaction(this, mode, _revision, _nextHandle, new Dictionary<CadHandle, CadEntitySnapshot>(_entities));
+            return new Transaction(this, mode, _revision, _nextHandle, CloneEntities(_entities));
+    }
+
+    public void Undo()
+    {
+        lock (_sync)
+        {
+            if (_undo.Count == 0) throw new InvalidOperationException("Nothing to undo.");
+            _redo.Push(Capture());
+            Restore(_undo.Pop());
+            _revision++;
+        }
+    }
+
+    public void Redo()
+    {
+        lock (_sync)
+        {
+            if (_redo.Count == 0) throw new InvalidOperationException("Nothing to redo.");
+            _undo.Push(Capture());
+            Restore(_redo.Pop());
+            _revision++;
+        }
     }
 
     private void Publish(long expectedRevision, long nextHandle, Dictionary<CadHandle, CadEntitySnapshot> entities)
@@ -25,11 +52,31 @@ public sealed class InMemoryCadDatabase : ICadDatabase
         {
             if (_revision != expectedRevision)
                 throw new InvalidOperationException("Drawing changed after this transaction began.");
-            _entities = entities;
+            _undo.Push(Capture());
+            _redo.Clear();
+            _entities = CloneEntities(entities);
             _nextHandle = nextHandle;
             _revision++;
         }
     }
+
+    private DatabaseState Capture() => new(CloneEntities(_entities), _nextHandle);
+
+    private void Restore(DatabaseState state)
+    {
+        _entities = CloneEntities(state.Entities);
+        _nextHandle = state.NextHandle;
+    }
+
+    private static Dictionary<CadHandle, CadEntitySnapshot> CloneEntities(Dictionary<CadHandle, CadEntitySnapshot> source)
+    {
+        var result = new Dictionary<CadHandle, CadEntitySnapshot>();
+        foreach (var pair in source)
+            result.Add(pair.Key, pair.Value with { Properties = new Dictionary<string, string>(pair.Value.Properties, StringComparer.Ordinal) });
+        return result;
+    }
+
+    private sealed record DatabaseState(Dictionary<CadHandle, CadEntitySnapshot> Entities, long NextHandle);
 
     private sealed class Transaction : ICadTransaction
     {
@@ -38,6 +85,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase
         private Dictionary<CadHandle, CadEntitySnapshot>? _working;
         private long _nextHandle;
         private bool _committed;
+        private bool _changed;
 
         public Transaction(InMemoryCadDatabase owner, CadTransactionMode mode, long baseRevision, long nextHandle, Dictionary<CadHandle, CadEntitySnapshot> working)
         {
@@ -71,6 +119,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : new Dictionary<string, string>(draft.Properties, StringComparer.Ordinal);
             _working!.Add(handle, new CadEntitySnapshot(handle, draft.Kind, draft.Extents, properties));
+            _changed = true;
             return handle;
         }
 
@@ -81,6 +130,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase
             if (!_working!.ContainsKey(entity.Handle))
                 throw new KeyNotFoundException($"Entity {entity.Handle} does not exist.");
             _working[entity.Handle] = entity with { Properties = new Dictionary<string, string>(entity.Properties, StringComparer.Ordinal) };
+            _changed = true;
         }
 
         public void Erase(CadHandle handle)
@@ -88,13 +138,15 @@ public sealed class InMemoryCadDatabase : ICadDatabase
             RequireWrite();
             if (!_working!.Remove(handle))
                 throw new KeyNotFoundException($"Entity {handle} does not exist.");
+            _changed = true;
         }
 
         public void Commit()
         {
             RequireWrite();
             if (_committed) throw new InvalidOperationException("Transaction is already committed.");
-            _owner.Publish(_baseRevision, _nextHandle, new Dictionary<CadHandle, CadEntitySnapshot>(_working!));
+            if (_changed)
+                _owner.Publish(_baseRevision, _nextHandle, _working!);
             _committed = true;
         }
 

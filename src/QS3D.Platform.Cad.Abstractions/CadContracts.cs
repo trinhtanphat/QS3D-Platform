@@ -50,6 +50,14 @@ public enum CadTransactionMode
 public sealed record CadEntityDraft(CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string>? Properties = null);
 public sealed record CadEntitySnapshot(CadHandle Handle, CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string> Properties);
 
+public interface ICadHistory
+{
+    bool CanUndo { get; }
+    bool CanRedo { get; }
+    void Undo();
+    void Redo();
+}
+
 public interface ICadTransaction : IDisposable
 {
     CadTransactionMode Mode { get; }
@@ -65,6 +73,7 @@ public interface ICadDatabase
 {
     CadCapabilities Capabilities { get; }
     long Revision { get; }
+    ICadHistory History { get; }
     ICadTransaction BeginTransaction(CadTransactionMode mode = CadTransactionMode.ReadWrite);
 }
 

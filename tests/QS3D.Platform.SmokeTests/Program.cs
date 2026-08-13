@@ -11,6 +11,7 @@ var tests = new (string Name, Action Run)[]
     ("semantic generated-reference identity", SemanticReferenceIdentity),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("stale transaction fails closed", StaleTransactionFailsClosed),
+    ("undo redo preserves drawing state", UndoRedoPreservesDrawingState),
     ("command registry", CommandRegistryContract)
 };
 
@@ -49,18 +50,16 @@ static void TransactionRollbackAndCommit()
     var database = new InMemoryCadDatabase();
     using (var tx = database.BeginTransaction())
     {
-        tx.Append(new CadEntityDraft(CadEntityKind.Line, BoundingBox3.FromPoints(new Point3(0, 0), new Point3(10, 0))));
+        tx.Append(LineDraft());
     }
-    using (var read = database.BeginTransaction(CadTransactionMode.ReadOnly))
-        Equal(0, read.Query().Count);
+    Equal(0, EntityCount(database));
 
     using (var tx = database.BeginTransaction())
     {
-        tx.Append(new CadEntityDraft(CadEntityKind.Line, BoundingBox3.FromPoints(new Point3(0, 0), new Point3(10, 0))));
+        tx.Append(LineDraft());
         tx.Commit();
     }
-    using (var read = database.BeginTransaction(CadTransactionMode.ReadOnly))
-        Equal(1, read.Query().Count);
+    Equal(1, EntityCount(database));
 }
 
 static void StaleTransactionFailsClosed()
@@ -68,10 +67,30 @@ static void StaleTransactionFailsClosed()
     var database = new InMemoryCadDatabase();
     using var first = database.BeginTransaction();
     using var stale = database.BeginTransaction();
-    first.Append(new CadEntityDraft(CadEntityKind.Point, new BoundingBox3(new Point3(0, 0), new Point3(0, 0))));
+    first.Append(PointDraft(0, 0));
     first.Commit();
-    stale.Append(new CadEntityDraft(CadEntityKind.Point, new BoundingBox3(new Point3(1, 1), new Point3(1, 1))));
+    stale.Append(PointDraft(1, 1));
     Throws<InvalidOperationException>(stale.Commit);
+}
+
+static void UndoRedoPreservesDrawingState()
+{
+    var database = new InMemoryCadDatabase();
+    CadHandle handle;
+    using (var tx = database.BeginTransaction())
+    {
+        handle = tx.Append(LineDraft());
+        tx.Commit();
+    }
+
+    Require(database.History.CanUndo, "commit must create undo history");
+    database.History.Undo();
+    Equal(0, EntityCount(database));
+    Require(database.History.CanRedo, "undo must create redo history");
+    database.History.Redo();
+    Equal(1, EntityCount(database));
+    using var read = database.BeginTransaction(CadTransactionMode.ReadOnly);
+    Require(read.Get(handle) is not null, "redo must preserve the original stable handle");
 }
 
 static void CommandRegistryContract()
@@ -83,6 +102,15 @@ static void CommandRegistryContract()
     Require(registry.Execute("ping", new CommandContext(document)).Succeeded, "case-insensitive command should execute");
     Equal("PONG", ((InMemoryEditor)document.Editor).Messages.Single());
     Throws<InvalidOperationException>(() => registry.Register(new PingCommand()));
+}
+
+static CadEntityDraft LineDraft() => new(CadEntityKind.Line, BoundingBox3.FromPoints(new Point3(0, 0), new Point3(10, 0)));
+static CadEntityDraft PointDraft(double x, double y) => new(CadEntityKind.Point, new BoundingBox3(new Point3(x, y), new Point3(x, y)));
+
+static int EntityCount(ICadDatabase database)
+{
+    using var read = database.BeginTransaction(CadTransactionMode.ReadOnly);
+    return read.Query().Count;
 }
 
 static void Require(bool condition, string message)
