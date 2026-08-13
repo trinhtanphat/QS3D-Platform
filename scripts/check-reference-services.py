@@ -36,6 +36,9 @@ for name in required_tests:
 plot = INMEMORY / "InMemoryPlotService.cs"
 if plot.is_file() and "new CadPlotResult(false" not in plot.read_text(encoding="utf-8", errors="replace"):
     failures.append("reference plot service must remain non-producing")
+registry = INMEMORY / "InMemoryAdvancedServices.cs"
+if registry.is_file() and "ConditionalWeakTable" not in registry.read_text(encoding="utf-8", errors="replace"):
+    failures.append("document-scoped reference services must use a weak registry")
 
 if failures:
     print("Platform reference services gate FAILED", file=sys.stderr)
