@@ -135,7 +135,8 @@ internal static class SnapshotGuard
             if (string.IsNullOrWhiteSpace(pair.Key)) throw new ArgumentException("Snapshot property key must not be blank.", nameof(properties));
             if (pair.Value is null) throw new ArgumentException("Snapshot property value must not be null.", nameof(properties));
             var key = pair.Key.Trim();
-            if (!result.TryAdd(key, pair.Value)) throw new ArgumentException($"Duplicate snapshot property '{key}'.", nameof(properties));
+            if (result.ContainsKey(key)) throw new ArgumentException($"Duplicate snapshot property '{key}'.", nameof(properties));
+            result.Add(key, pair.Value);
         }
         return result;
     }
