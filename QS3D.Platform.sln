@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Application",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Quantity", "src\QS3D.Platform.Quantity\QS3D.Platform.Quantity.csproj", "{04F78AC9-B3E4-42EC-87CB-8DC577658104}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Persistence", "src\QS3D.Platform.Persistence\QS3D.Platform.Persistence.csproj", "{A2C7E0F4-7C0C-42E3-91BE-0C5E2E974811}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Diagnostics", "src\QS3D.Platform.Diagnostics\QS3D.Platform.Diagnostics.csproj", "{4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.InMemory", "src\QS3D.Platform.InMemory\QS3D.Platform.InMemory.csproj", "{483FB93B-36C4-4628-8E91-296AD602312A}"
@@ -44,6 +46,10 @@ Global
     {04F78AC9-B3E4-42EC-87CB-8DC577658104}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {04F78AC9-B3E4-42EC-87CB-8DC577658104}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {04F78AC9-B3E4-42EC-87CB-8DC577658104}.Release|Any CPU.Build.0 = Release|Any CPU
+    {A2C7E0F4-7C0C-42E3-91BE-0C5E2E974811}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {A2C7E0F4-7C0C-42E3-91BE-0C5E2E974811}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {A2C7E0F4-7C0C-42E3-91BE-0C5E2E974811}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {A2C7E0F4-7C0C-42E3-91BE-0C5E2E974811}.Release|Any CPU.Build.0 = Release|Any CPU
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Release|Any CPU.ActiveCfg = Release|Any CPU
