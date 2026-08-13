@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Persistence",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Diagnostics", "src\QS3D.Platform.Diagnostics\QS3D.Platform.Diagnostics.csproj", "{4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.Parity", "src\QS3D.Platform.Parity\QS3D.Platform.Parity.csproj", "{D5A6B7C8-4D3E-4210-A987-1F2E3D4C5B6A}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.InMemory", "src\QS3D.Platform.InMemory\QS3D.Platform.InMemory.csproj", "{483FB93B-36C4-4628-8E91-296AD602312A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QS3D.Platform.SmokeTests", "tests\QS3D.Platform.SmokeTests\QS3D.Platform.SmokeTests.csproj", "{5034A381-71F7-4EA3-962D-34C6227B8512}"
@@ -54,6 +56,10 @@ Global
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Release|Any CPU.ActiveCfg = Release|Any CPU
     {4CE73121-D5DD-44AF-A23C-6D4CF5E3A311}.Release|Any CPU.Build.0 = Release|Any CPU
+    {D5A6B7C8-4D3E-4210-A987-1F2E3D4C5B6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {D5A6B7C8-4D3E-4210-A987-1F2E3D4C5B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {D5A6B7C8-4D3E-4210-A987-1F2E3D4C5B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {D5A6B7C8-4D3E-4210-A987-1F2E3D4C5B6A}.Release|Any CPU.Build.0 = Release|Any CPU
     {483FB93B-36C4-4628-8E91-296AD602312A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
     {483FB93B-36C4-4628-8E91-296AD602312A}.Debug|Any CPU.Build.0 = Debug|Any CPU
     {483FB93B-36C4-4628-8E91-296AD602312A}.Release|Any CPU.ActiveCfg = Release|Any CPU
