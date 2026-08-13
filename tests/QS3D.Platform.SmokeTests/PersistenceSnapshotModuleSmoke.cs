@@ -76,8 +76,13 @@ internal static class PersistenceSnapshotModuleSmoke
         Equal(2, migrated.SchemaVersion);
         Equal(snapshot.ProjectId, migrated.ProjectId);
         Equal(snapshot.Name + " migrated", migrated.Name);
+        Equal(snapshot, migrator.Migrate(snapshot, snapshot.SchemaVersion));
+        Throws<InvalidOperationException>(() => migrator.Migrate(snapshot, 0));
+        Throws<InvalidOperationException>(() => migrator.Migrate(snapshot, 3));
+        Throws<InvalidOperationException>(() => new SemanticSnapshotMigrator(Array.Empty<ISemanticSnapshotMigration>()).Migrate(snapshot, 2));
         Throws<InvalidOperationException>(() => new SemanticSnapshotMigrator(new ISemanticSnapshotMigration[] { new RenameMigration(), new RenameMigration() }));
         Throws<InvalidOperationException>(() => new SemanticSnapshotMigrator(new ISemanticSnapshotMigration[] { new BadIdentityMigration() }).Migrate(snapshot, 2));
+        Throws<InvalidOperationException>(() => new SemanticSnapshotMigrator(new ISemanticSnapshotMigration[] { new OvershootMigration() }).Migrate(snapshot, 2));
 
         Console.WriteLine("PASS semantic persistence snapshot and migration contracts");
     }
@@ -118,6 +123,14 @@ internal static class PersistenceSnapshotModuleSmoke
         public int ToVersion => 2;
         public SemanticProjectSnapshot Apply(SemanticProjectSnapshot source)
             => CopyWith(source, 2, Guid.NewGuid(), source.Name);
+    }
+
+    private sealed class OvershootMigration : ISemanticSnapshotMigration
+    {
+        public int FromVersion => 1;
+        public int ToVersion => 3;
+        public SemanticProjectSnapshot Apply(SemanticProjectSnapshot source)
+            => CopyWith(source, 3, source.ProjectId, source.Name);
     }
 
     private static void Equal<T>(T expected, T actual) where T : notnull
