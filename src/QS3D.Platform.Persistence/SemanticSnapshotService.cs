@@ -88,7 +88,8 @@ public static class SemanticSnapshotService
         var families = new Dictionary<Guid, FamilySnapshot>();
         foreach (var family in snapshot.Families)
         {
-            if (!families.TryAdd(family.Id, family)) throw new InvalidDataException($"Duplicate family ID {family.Id:D}.");
+            if (families.ContainsKey(family.Id)) throw new InvalidDataException($"Duplicate family ID {family.Id:D}.");
+            families.Add(family.Id, family);
         }
         Unique(snapshot.Elements.Select(static x => x.Id), "element");
 
