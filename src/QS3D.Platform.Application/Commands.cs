@@ -17,7 +17,19 @@ public readonly record struct CommandResult(bool Succeeded, string? Message)
     public static CommandResult Failure(string message) => new(false, message);
 }
 
-public sealed record CommandContext(ICadDocument Document, CancellationToken CancellationToken = default);
+public sealed class CommandContext
+{
+    public CommandContext(ICadDocument document, IEnumerable<string>? arguments = null, CancellationToken cancellationToken = default)
+    {
+        Document = document ?? throw new ArgumentNullException(nameof(document));
+        Arguments = arguments?.ToArray() ?? Array.Empty<string>();
+        CancellationToken = cancellationToken;
+    }
+
+    public ICadDocument Document { get; }
+    public IReadOnlyList<string> Arguments { get; }
+    public CancellationToken CancellationToken { get; }
+}
 
 public interface ICadCommand
 {

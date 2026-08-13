@@ -1,3 +1,4 @@
+using System.Globalization;
 using QS3D.Platform.Cad.Abstractions;
 using QS3D.Platform.Domain;
 
@@ -9,8 +10,30 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
     private readonly Stack<DatabaseState> _undo = new();
     private readonly Stack<DatabaseState> _redo = new();
     private Dictionary<CadHandle, CadEntitySnapshot> _entities = new();
-    private long _nextHandle = 1;
+    private ulong _nextHandle = 1;
     private long _revision;
+
+    public InMemoryCadDatabase()
+    {
+    }
+
+    public InMemoryCadDatabase(IEnumerable<CadEntitySnapshot> entities)
+    {
+        ArgumentNullException.ThrowIfNull(entities);
+        ulong maxHandle = 0;
+        foreach (var entity in entities)
+        {
+            ArgumentNullException.ThrowIfNull(entity);
+            var clone = entity with { Properties = new Dictionary<string, string>(entity.Properties, StringComparer.Ordinal) };
+            if (!_entities.TryAdd(entity.Handle, clone))
+                throw new InvalidOperationException($"Duplicate CAD handle {entity.Handle} in snapshot.");
+            var numericHandle = ulong.Parse(entity.Handle.Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+            if (numericHandle > maxHandle) maxHandle = numericHandle;
+        }
+        if (maxHandle == ulong.MaxValue && _entities.Count != 0)
+            throw new InvalidOperationException("Snapshot exhausted the 64-bit CAD handle range.");
+        _nextHandle = _entities.Count == 0 ? 1UL : maxHandle + 1UL;
+    }
 
     public CadCapabilities Capabilities => CadCapabilities.TwoDimensional | CadCapabilities.Blocks | CadCapabilities.Layouts;
     public long Revision { get { lock (_sync) return _revision; } }
@@ -46,7 +69,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         }
     }
 
-    private void Publish(long expectedRevision, long nextHandle, Dictionary<CadHandle, CadEntitySnapshot> entities)
+    private void Publish(long expectedRevision, ulong nextHandle, Dictionary<CadHandle, CadEntitySnapshot> entities)
     {
         lock (_sync)
         {
@@ -76,18 +99,18 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         return result;
     }
 
-    private sealed record DatabaseState(Dictionary<CadHandle, CadEntitySnapshot> Entities, long NextHandle);
+    private sealed record DatabaseState(Dictionary<CadHandle, CadEntitySnapshot> Entities, ulong NextHandle);
 
     private sealed class Transaction : ICadTransaction
     {
         private readonly InMemoryCadDatabase _owner;
         private readonly long _baseRevision;
         private Dictionary<CadHandle, CadEntitySnapshot>? _working;
-        private long _nextHandle;
+        private ulong _nextHandle;
         private bool _committed;
         private bool _changed;
 
-        public Transaction(InMemoryCadDatabase owner, CadTransactionMode mode, long baseRevision, long nextHandle, Dictionary<CadHandle, CadEntitySnapshot> working)
+        public Transaction(InMemoryCadDatabase owner, CadTransactionMode mode, long baseRevision, ulong nextHandle, Dictionary<CadHandle, CadEntitySnapshot> working)
         {
             _owner = owner;
             Mode = mode;
@@ -114,7 +137,9 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         {
             RequireWrite();
             ArgumentNullException.ThrowIfNull(draft);
-            var handle = new CadHandle((_nextHandle++).ToString("X"));
+            if (_nextHandle == 0) throw new InvalidOperationException("CAD handle range exhausted.");
+            var handle = new CadHandle(_nextHandle.ToString("X", CultureInfo.InvariantCulture));
+            _nextHandle = _nextHandle == ulong.MaxValue ? 0 : _nextHandle + 1;
             var properties = draft.Properties is null
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : new Dictionary<string, string>(draft.Properties, StringComparer.Ordinal);
@@ -191,12 +216,17 @@ public sealed class InMemoryEditor : ICadEditor
 
 public sealed class InMemoryCadDocument : ICadDocument
 {
-    public InMemoryCadDocument(string name)
+    public InMemoryCadDocument(string name) : this(DrawingId.New(), name, new InMemoryCadDatabase())
     {
+    }
+
+    public InMemoryCadDocument(DrawingId id, string name, InMemoryCadDatabase database)
+    {
+        if (id.Value == Guid.Empty) throw new ArgumentException("Drawing ID must not be empty.", nameof(id));
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        Id = DrawingId.New();
+        Id = id;
         Name = name.Trim();
-        Database = new InMemoryCadDatabase();
+        Database = database ?? throw new ArgumentNullException(nameof(database));
         Editor = new InMemoryEditor(new InMemorySelection());
     }
 
@@ -215,9 +245,17 @@ public sealed class InMemoryDocumentManager : IDocumentManager
     public ICadDocument CreateNew(string name)
     {
         var document = new InMemoryCadDocument(name);
+        Open(document);
+        return document;
+    }
+
+    public void Open(InMemoryCadDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (_documents.Any(x => x.Id == document.Id))
+            throw new InvalidOperationException($"Drawing {document.Id.Value:D} is already open.");
         _documents.Add(document);
         ActiveDocument = document;
-        return document;
     }
 
     public void Activate(DrawingId id)
