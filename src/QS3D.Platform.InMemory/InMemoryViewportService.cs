@@ -1,4 +1,5 @@
 using QS3D.Platform.Cad.Abstractions;
+using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
 
 namespace QS3D.Platform.InMemory;
