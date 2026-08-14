@@ -15,10 +15,15 @@ public sealed class QuantityScheduleRow
         IEnumerable<QuantitySummary> quantities)
     {
         if (elementId.Value == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(elementId));
+        if (elementKind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), elementKind)) throw new ArgumentOutOfRangeException(nameof(elementKind));
         if (familyId.Value == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(familyId));
+        if (floorId.HasValue && floorId.Value.Value == Guid.Empty) throw new ArgumentException("Floor ID must not be empty when supplied.", nameof(floorId));
+        if (zoneId.HasValue && zoneId.Value.Value == Guid.Empty) throw new ArgumentException("Zone ID must not be empty when supplied.", nameof(zoneId));
         if (string.IsNullOrWhiteSpace(elementName)) throw new ArgumentException("Element name must not be blank.", nameof(elementName));
         if (string.IsNullOrWhiteSpace(familyName)) throw new ArgumentException("Family name must not be blank.", nameof(familyName));
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
+        var copiedQuantities = quantities.ToArray();
+        if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
         ElementId = elementId;
         ElementName = elementName.Trim();
         ElementKind = elementKind;
@@ -26,7 +31,7 @@ public sealed class QuantityScheduleRow
         FamilyName = familyName.Trim();
         FloorId = floorId;
         ZoneId = zoneId;
-        Quantities = quantities.OrderBy(static quantity => quantity.Code, StringComparer.Ordinal)
+        Quantities = copiedQuantities.OrderBy(static quantity => quantity.Code, StringComparer.Ordinal)
             .ThenBy(static quantity => quantity.Quantity.Dimension)
             .ToArray();
     }
@@ -46,7 +51,9 @@ public sealed class QuantitySchedule
     public QuantitySchedule(IEnumerable<QuantityScheduleRow> rows)
     {
         if (rows is null) throw new ArgumentNullException(nameof(rows));
-        Rows = rows.OrderBy(static row => row.ElementKind)
+        var copiedRows = rows.ToArray();
+        if (copiedRows.Any(static row => row is null)) throw new ArgumentException("Schedule rows must not contain null entries.", nameof(rows));
+        Rows = copiedRows.OrderBy(static row => row.ElementKind)
             .ThenBy(static row => row.ElementName, StringComparer.Ordinal)
             .ThenBy(static row => row.ElementId.Value)
             .ToArray();
