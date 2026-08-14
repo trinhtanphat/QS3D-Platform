@@ -61,7 +61,7 @@ public sealed class FamilySnapshot
     public FamilySnapshot(Guid id, SemanticElementKind kind, string name)
     {
         if (id == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(id));
-        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Family name must not be blank.", nameof(name));
         Id = id;
         Kind = kind;
@@ -89,7 +89,7 @@ public sealed class ElementSnapshot
     public ElementSnapshot(Guid id, SemanticElementKind kind, string name, Guid familyId, Guid? floorId, Guid? zoneId, CadReferenceSnapshot? sourceReference, IEnumerable<CadReferenceSnapshot>? generatedReferences, IReadOnlyDictionary<string, string>? properties)
     {
         if (id == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(id));
-        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (familyId == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(familyId));
         if (floorId == Guid.Empty) throw new ArgumentException("Floor ID must not be empty when supplied.", nameof(floorId));
         if (zoneId == Guid.Empty) throw new ArgumentException("Zone ID must not be empty when supplied.", nameof(zoneId));

@@ -52,7 +52,7 @@ public sealed class Family
     public Family(FamilyId id, SemanticElementKind kind, string name)
     {
         if (id.Value == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(id));
-        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Family name must not be blank.", nameof(name));
         Id = id;
         Kind = kind;
@@ -71,7 +71,7 @@ public sealed class SemanticElement
     public SemanticElement(ElementId id, SemanticElementKind kind, string name, FamilyId familyId)
     {
         if (id.Value == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(id));
-        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (familyId.Value == Guid.Empty) throw new ArgumentException("Family ID must not be empty.", nameof(familyId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Element name must not be blank.", nameof(name));
         Id = id;

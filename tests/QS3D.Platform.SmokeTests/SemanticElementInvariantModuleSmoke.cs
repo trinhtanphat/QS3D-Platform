@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using QS3D.Platform.Domain;
+using QS3D.Platform.Persistence;
 
 namespace QS3D.Platform.SmokeTests;
 
@@ -18,6 +19,13 @@ internal static class SemanticElementInvariantModuleSmoke
         Throws<ArgumentException>(() => element.AddGeneratedReference(new CadReference(new DrawingId(Guid.Empty), new CadHandle("2"))));
         Throws<ArgumentException>(() => element.AddGeneratedReference(new CadReference(DrawingId.New(), default)));
         Throws<ArgumentException>(() => element.RemoveGeneratedReference(default));
+
+        var invalidKind = (SemanticElementKind)int.MaxValue;
+        Throws<ArgumentOutOfRangeException>(() => new Family(FamilyId.New(), invalidKind, "Invalid family"));
+        Throws<ArgumentOutOfRangeException>(() => new SemanticElement(ElementId.New(), invalidKind, "Invalid element", FamilyId.New()));
+        Throws<ArgumentOutOfRangeException>(() => new FamilySnapshot(Guid.NewGuid(), invalidKind, "Invalid family snapshot"));
+        Throws<ArgumentOutOfRangeException>(() => new ElementSnapshot(
+            Guid.NewGuid(), invalidKind, "Invalid element snapshot", Guid.NewGuid(), null, null, null, null, null));
 
         var drawing = DrawingId.New();
         var source = new CadReference(drawing, new CadHandle("000A"));
