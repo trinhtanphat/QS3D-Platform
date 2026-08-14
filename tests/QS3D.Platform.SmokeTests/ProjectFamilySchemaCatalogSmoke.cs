@@ -10,6 +10,15 @@ internal static class ProjectFamilySchemaCatalogSmoke
     [ModuleInitializer]
     internal static void Run()
     {
+        var invalidKind = (SemanticElementKind)int.MaxValue;
+        var invalidType = (FamilyParameterType)int.MaxValue;
+        var invalidDimension = (QuantityDimension)int.MaxValue;
+        Throws<ArgumentOutOfRangeException>(() => new FamilyParameterDefinition("Invalid", invalidType));
+        Throws<ArgumentOutOfRangeException>(() => new FamilyParameterDefinition(
+            "InvalidQuantity", FamilyParameterType.Quantity, quantityDimension: invalidDimension));
+        Throws<ArgumentOutOfRangeException>(() => new FamilySchemaDefinition(
+            "invalid.kind", 1, invalidKind, "Invalid", Array.Empty<FamilyParameterDefinition>()));
+
         var project = new SemanticProject(ProjectId.New(), "Family Project");
         var family = new Family(FamilyId.New(), SemanticElementKind.Wall, "Basic Wall");
         project.AddFamily(family);

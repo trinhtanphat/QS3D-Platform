@@ -90,6 +90,8 @@ public sealed class FamilyParameterDefinition
         double? maximum = null)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Parameter name must not be blank.", nameof(name));
+        if (!Enum.IsDefined(typeof(FamilyParameterType), type)) throw new ArgumentOutOfRangeException(nameof(type));
+        if (quantityDimension.HasValue && !Enum.IsDefined(typeof(QuantityDimension), quantityDimension.Value)) throw new ArgumentOutOfRangeException(nameof(quantityDimension));
         Name = NormalizeName(name);
         Type = type;
         Required = required;
@@ -159,7 +161,7 @@ public sealed class FamilySchemaDefinition
     {
         if (string.IsNullOrWhiteSpace(schemaId)) throw new ArgumentException("Family schema ID must not be blank.", nameof(schemaId));
         if (version < 1) throw new ArgumentOutOfRangeException(nameof(version));
-        if (kind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(kind));
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Family schema name must not be blank.", nameof(name));
         SchemaId = NormalizeId(schemaId);
         Version = version;
