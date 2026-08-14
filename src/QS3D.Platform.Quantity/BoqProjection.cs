@@ -99,8 +99,9 @@ public static class BoqProjector
             if (!StringComparer.Ordinal.Equals(rate.Currency, normalizedCurrency))
                 throw new InvalidOperationException($"Rate '{rate.QuantityCode}' uses {rate.Currency}, expected {normalizedCurrency}.");
             var key = new RateKey(rate.QuantityCode, rate.Dimension);
-            if (!rateMap.TryAdd(key, rate))
+            if (rateMap.ContainsKey(key))
                 throw new InvalidOperationException($"Duplicate unit rate for '{rate.QuantityCode}'/{rate.Dimension}.");
+            rateMap.Add(key, rate);
         }
 
         var lines = new List<BoqLine>();
