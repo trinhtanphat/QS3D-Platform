@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Persistence;
+using QS3D.Platform.Quantity;
 
 namespace QS3D.Platform.SmokeTests;
 
@@ -26,6 +27,16 @@ internal static class SemanticElementInvariantModuleSmoke
         Throws<ArgumentOutOfRangeException>(() => new FamilySnapshot(Guid.NewGuid(), invalidKind, "Invalid family snapshot"));
         Throws<ArgumentOutOfRangeException>(() => new ElementSnapshot(
             Guid.NewGuid(), invalidKind, "Invalid element snapshot", Guid.NewGuid(), null, null, null, null, null));
+
+        var invalidDimension = (QuantityDimension)int.MaxValue;
+        Throws<ArgumentOutOfRangeException>(() => new QuantityValue(invalidDimension, 1d));
+        Throws<ArgumentOutOfRangeException>(() => new QuantitySummary("BAD.DIM", invalidDimension, 1d, 1, 1));
+        Throws<ArgumentException>(() => new QuantityFact(
+            ElementId.New(), "BAD.SOURCE", new QuantityValue(QuantityDimension.Count, 1d),
+            new CadReference(new DrawingId(Guid.Empty), new CadHandle("1"))));
+        Throws<ArgumentException>(() => new QuantityFact(
+            ElementId.New(), "BAD.HANDLE", new QuantityValue(QuantityDimension.Count, 1d),
+            new CadReference(DrawingId.New(), default)));
 
         var drawing = DrawingId.New();
         var source = new CadReference(drawing, new CadHandle("000A"));

@@ -16,6 +16,7 @@ public readonly struct QuantityValue : IEquatable<QuantityValue>
 {
     public QuantityValue(QuantityDimension dimension, double value)
     {
+        if (!Enum.IsDefined(typeof(QuantityDimension), dimension)) throw new ArgumentOutOfRangeException(nameof(dimension));
         Dimension = dimension;
         Value = Numeric.RequireNonNegativeFinite(value, nameof(value));
     }
@@ -54,6 +55,13 @@ public sealed class QuantityFact
     {
         if (elementId.Value == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(elementId));
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Quantity code must not be blank.", nameof(code));
+        if (sourceReference.HasValue)
+        {
+            if (sourceReference.Value.DrawingId.Value == Guid.Empty)
+                throw new ArgumentException("Quantity source drawing ID must not be empty.", nameof(sourceReference));
+            if (string.IsNullOrWhiteSpace(sourceReference.Value.Handle.Value))
+                throw new ArgumentException("Quantity source CAD handle must not be empty.", nameof(sourceReference));
+        }
         ElementId = elementId;
         Code = code.Trim();
         Quantity = quantity;
