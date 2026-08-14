@@ -37,16 +37,17 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         string? currentLayerName,
         IEnumerable<CadBlockDefinitionSnapshot>? blocks)
     {
-        ArgumentNullException.ThrowIfNull(entities);
+        if (entities is null) throw new ArgumentNullException(nameof(entities));
         if (layers is not null)
         {
             _layers.Clear();
             foreach (var layer in layers)
             {
-                ArgumentNullException.ThrowIfNull(layer);
+                if (layer is null) throw new ArgumentException("Layer snapshot collection must not contain null entries.", nameof(layers));
                 var normalized = NormalizeLayerName(layer.Name);
-                if (!_layers.TryAdd(normalized, layer with { Name = normalized }))
+                if (_layers.ContainsKey(normalized))
                     throw new InvalidOperationException($"Duplicate CAD layer '{normalized}' in snapshot.");
+                _layers.Add(normalized, layer with { Name = normalized });
             }
         }
         if (!_layers.ContainsKey("0")) _layers.Add("0", new CadLayerSnapshot("0"));
@@ -55,22 +56,24 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         {
             foreach (var block in blocks)
             {
-                ArgumentNullException.ThrowIfNull(block);
+                if (block is null) throw new ArgumentException("Block snapshot collection must not contain null entries.", nameof(blocks));
                 var clone = NormalizeBlock(block, _layers);
-                if (!_blocks.TryAdd(clone.Name, clone))
+                if (_blocks.ContainsKey(clone.Name))
                     throw new InvalidOperationException($"Duplicate CAD block '{clone.Name}' in snapshot.");
+                _blocks.Add(clone.Name, clone);
             }
         }
 
         ulong maxHandle = 0;
         foreach (var entity in entities)
         {
-            ArgumentNullException.ThrowIfNull(entity);
+            if (entity is null) throw new ArgumentException("Entity snapshot collection must not contain null entries.", nameof(entities));
             var layerName = NormalizeLayerName(entity.LayerName);
             if (!_layers.ContainsKey(layerName)) _layers.Add(layerName, new CadLayerSnapshot(layerName));
             var clone = entity with { Properties = CloneProperties(entity.Properties), LayerName = layerName };
-            if (!_entities.TryAdd(entity.Handle, clone))
+            if (_entities.ContainsKey(entity.Handle))
                 throw new InvalidOperationException($"Duplicate CAD handle {entity.Handle} in snapshot.");
+            _entities.Add(entity.Handle, clone);
             var numericHandle = ulong.Parse(entity.Handle.Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
             if (numericHandle > maxHandle) maxHandle = numericHandle;
         }
@@ -317,7 +320,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         public CadHandle Append(CadEntityDraft draft)
         {
             RequireWrite();
-            ArgumentNullException.ThrowIfNull(draft);
+            if (draft is null) throw new ArgumentNullException(nameof(draft));
             if (_nextHandle == 0) throw new InvalidOperationException("CAD handle range exhausted.");
             var layerName = draft.LayerName is null ? _currentLayerName : NormalizeLayerName(draft.LayerName);
             var layer = RequireLayer(layerName);
@@ -333,7 +336,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         public void Update(CadEntitySnapshot entity)
         {
             RequireWrite();
-            ArgumentNullException.ThrowIfNull(entity);
+            if (entity is null) throw new ArgumentNullException(nameof(entity));
             if (!_working!.TryGetValue(entity.Handle, out var existing))
                 throw new KeyNotFoundException($"Entity {entity.Handle} does not exist.");
             if (RequireLayer(existing.LayerName).IsLocked) throw new InvalidOperationException($"Layer '{existing.LayerName}' is locked.");
@@ -365,7 +368,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         public void UpdateLayer(CadLayerSnapshot layer)
         {
             RequireWrite();
-            ArgumentNullException.ThrowIfNull(layer);
+            if (layer is null) throw new ArgumentNullException(nameof(layer));
             var normalized = NormalizeLayerName(layer.Name);
             if (!_layers!.ContainsKey(normalized)) throw new KeyNotFoundException($"Layer '{normalized}' does not exist.");
             if (StringComparer.OrdinalIgnoreCase.Equals(normalized, _currentLayerName) && (layer.IsFrozen || layer.IsLocked))
@@ -404,7 +407,7 @@ public sealed class InMemoryCadDatabase : ICadDatabase, ICadHistory
         public void CreateBlock(string name, Point3 basePoint, IReadOnlyList<CadEntityDraft> entities)
         {
             RequireWrite();
-            ArgumentNullException.ThrowIfNull(entities);
+            if (entities is null) throw new ArgumentNullException(nameof(entities));
             var normalized = NormalizeBlockName(name);
             if (_blocks!.ContainsKey(normalized)) throw new InvalidOperationException($"Block '{normalized}' already exists.");
             if (entities.Count == 0) throw new InvalidOperationException("A block definition must contain at least one entity.");
@@ -546,7 +549,7 @@ public sealed class InMemorySelection : ICadSelection
     public IReadOnlyCollection<CadHandle> Current => _current.ToArray();
     public void Set(IEnumerable<CadHandle> handles)
     {
-        ArgumentNullException.ThrowIfNull(handles);
+        if (handles is null) throw new ArgumentNullException(nameof(handles));
         _current.Clear();
         foreach (var handle in handles) _current.Add(handle);
     }
@@ -571,7 +574,7 @@ public sealed class InMemoryCadDocument : ICadDocument
     public InMemoryCadDocument(DrawingId id, string name, InMemoryCadDatabase database)
     {
         if (id.Value == Guid.Empty) throw new ArgumentException("Drawing ID must not be empty.", nameof(id));
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Drawing name must not be blank.", nameof(name));
         Id = id;
         Name = name.Trim();
         Database = database ?? throw new ArgumentNullException(nameof(database));
@@ -599,7 +602,7 @@ public sealed class InMemoryDocumentManager : IDocumentManager
 
     public void Open(InMemoryCadDocument document)
     {
-        ArgumentNullException.ThrowIfNull(document);
+        if (document is null) throw new ArgumentNullException(nameof(document));
         if (_documents.Any(x => x.Id == document.Id)) throw new InvalidOperationException($"Drawing {document.Id.Value:D} is already open.");
         _documents.Add(document);
         ActiveDocument = document;
