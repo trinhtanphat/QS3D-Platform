@@ -45,7 +45,7 @@ public sealed class QuantityRuleDefinition
         OutputDimension = outputDimension;
         Factors = copiedFactors;
         Multiplier = multiplier;
-        Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        Description = description is null || string.IsNullOrWhiteSpace(description) ? null : description.Trim();
     }
 
     public SemanticElementKind ElementKind { get; }
