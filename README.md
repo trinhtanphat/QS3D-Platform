@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/branding/qs3d-logo.svg" width="180" alt="QS3D product family logo" /></p>
+
 # QS3D Platform
 
 Shared clean-room domain and CAD-host contracts for the QS3D product family.
