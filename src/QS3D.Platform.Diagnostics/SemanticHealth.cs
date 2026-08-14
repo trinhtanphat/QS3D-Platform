@@ -14,7 +14,9 @@ public sealed class DiagnosticFinding
     public DiagnosticFinding(string code, DiagnosticSeverity severity, string message, ElementId? elementId = null)
     {
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Diagnostic code must not be blank.", nameof(code));
+        if (!Enum.IsDefined(typeof(DiagnosticSeverity), severity)) throw new ArgumentOutOfRangeException(nameof(severity));
         if (string.IsNullOrWhiteSpace(message)) throw new ArgumentException("Diagnostic message must not be blank.", nameof(message));
+        if (elementId.HasValue && elementId.Value.Value == Guid.Empty) throw new ArgumentException("Diagnostic element ID must not be empty when supplied.", nameof(elementId));
         Code = code.Trim();
         Severity = severity;
         Message = message.Trim();
@@ -32,7 +34,9 @@ public sealed class ModelHealthReport
     public ModelHealthReport(IEnumerable<DiagnosticFinding> findings)
     {
         if (findings is null) throw new ArgumentNullException(nameof(findings));
-        Findings = findings.OrderByDescending(static x => x.Severity)
+        var copied = findings.ToArray();
+        if (copied.Any(static finding => finding is null)) throw new ArgumentException("Health report findings must not contain null entries.", nameof(findings));
+        Findings = copied.OrderByDescending(static x => x.Severity)
             .ThenBy(static x => x.Code, StringComparer.Ordinal)
             .ThenBy(static x => x.ElementId.HasValue ? x.ElementId.Value.Value : Guid.Empty)
             .ToArray();

@@ -9,6 +9,11 @@ internal static class CadOwnershipHealthModuleSmoke
     [ModuleInitializer]
     internal static void Run()
     {
+        var invalidSeverity = (DiagnosticSeverity)int.MaxValue;
+        Throws<ArgumentOutOfRangeException>(() => new DiagnosticFinding("BAD_SEVERITY", invalidSeverity, "invalid"));
+        Throws<ArgumentException>(() => new DiagnosticFinding("BAD_ELEMENT", DiagnosticSeverity.Error, "invalid", new ElementId(Guid.Empty)));
+        Throws<ArgumentException>(() => new ModelHealthReport(new DiagnosticFinding[] { null! }));
+
         var drawing = DrawingId.New();
         var family = new Family(FamilyId.New(), SemanticElementKind.Wall, "Wall");
         var project = new SemanticProject(ProjectId.New(), "Ownership");
@@ -52,5 +57,12 @@ internal static class CadOwnershipHealthModuleSmoke
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
             throw new InvalidOperationException($"Expected {expected} but got {actual}.");
+    }
+
+    private static void Throws<T>(Action action) where T : Exception
+    {
+        try { action(); }
+        catch (T) { return; }
+        throw new InvalidOperationException($"Expected {typeof(T).Name}.");
     }
 }
