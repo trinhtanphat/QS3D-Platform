@@ -15,6 +15,15 @@ internal static class QuantityRuleUnitModuleSmoke
         Equal(2.5d, QuantityUnits.ToCanonical(2500d, QuantityUnit.Gram));
         Equal(2500d, QuantityUnits.FromCanonical(2.5d, QuantityUnit.Millimeter));
 
+        var invalidKind = (SemanticElementKind)int.MaxValue;
+        var invalidDimension = (QuantityDimension)int.MaxValue;
+        var invalidUnit = (QuantityUnit)int.MaxValue;
+        Throws<ArgumentOutOfRangeException>(() => new QuantityFactor("LengthMm", invalidUnit));
+        Throws<ArgumentOutOfRangeException>(() => new QuantityRuleDefinition(invalidKind, "BAD.KIND", QuantityDimension.Count));
+        Throws<ArgumentOutOfRangeException>(() => new QuantityRuleDefinition(SemanticElementKind.Wall, "BAD.DIM", invalidDimension));
+        Throws<ArgumentOutOfRangeException>(() => new UnitRate("BAD.RATE", invalidDimension, 1m, "VND"));
+        Throws<ArgumentOutOfRangeException>(() => new QuantityRuleCatalog(Array.Empty<QuantityRuleDefinition>()).ForKind(invalidKind));
+
         var tolerance = GeometryTolerance.Default;
         Require(tolerance.NearlyEqualDistance(1d, 1d + 5e-10d), "default linear tolerance must accept sub-nanometre delta");
         Require(!tolerance.NearlyEqualDistance(1d, 1.0001d), "default linear tolerance must reject material delta");

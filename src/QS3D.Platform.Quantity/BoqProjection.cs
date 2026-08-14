@@ -30,6 +30,7 @@ public sealed class UnitRate
     public UnitRate(string quantityCode, QuantityDimension dimension, decimal amountPerCanonicalUnit, string currency)
     {
         if (string.IsNullOrWhiteSpace(quantityCode)) throw new ArgumentException("Quantity code must not be blank.", nameof(quantityCode));
+        if (!Enum.IsDefined(typeof(QuantityDimension), dimension)) throw new ArgumentOutOfRangeException(nameof(dimension));
         if (amountPerCanonicalUnit < 0m) throw new ArgumentOutOfRangeException(nameof(amountPerCanonicalUnit));
         QuantityCode = quantityCode.Trim();
         Dimension = dimension;

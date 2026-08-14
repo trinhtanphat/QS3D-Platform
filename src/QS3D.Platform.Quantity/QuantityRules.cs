@@ -9,6 +9,7 @@ public sealed class QuantityFactor
     public QuantityFactor(string propertyName, QuantityUnit unit, int exponent = 1)
     {
         if (string.IsNullOrWhiteSpace(propertyName)) throw new ArgumentException("Quantity factor property name must not be blank.", nameof(propertyName));
+        if (!Enum.IsDefined(typeof(QuantityUnit), unit)) throw new ArgumentOutOfRangeException(nameof(unit));
         if (exponent < 1 || exponent > 3) throw new ArgumentOutOfRangeException(nameof(exponent), exponent, "Quantity factor exponent must be between 1 and 3.");
         PropertyName = propertyName.Trim();
         Unit = unit;
@@ -30,7 +31,8 @@ public sealed class QuantityRuleDefinition
         double multiplier = 1d,
         string? description = null)
     {
-        if (elementKind == SemanticElementKind.Unknown) throw new ArgumentOutOfRangeException(nameof(elementKind));
+        if (elementKind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), elementKind)) throw new ArgumentOutOfRangeException(nameof(elementKind));
+        if (!Enum.IsDefined(typeof(QuantityDimension), outputDimension)) throw new ArgumentOutOfRangeException(nameof(outputDimension));
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Quantity rule code must not be blank.", nameof(code));
         multiplier = Numeric.RequireNonNegativeFinite(multiplier, nameof(multiplier));
         var copiedFactors = factors is null ? Array.Empty<QuantityFactor>() : factors.ToArray();
@@ -131,7 +133,10 @@ public sealed class QuantityRuleCatalog
     public IReadOnlyList<QuantityRuleDefinition> Rules => _rules;
 
     public IReadOnlyList<QuantityRuleDefinition> ForKind(SemanticElementKind kind)
-        => _rules.Where(rule => rule.ElementKind == kind).ToArray();
+    {
+        if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
+        return _rules.Where(rule => rule.ElementKind == kind).ToArray();
+    }
 }
 
 public static class QuantityRuleEngine
