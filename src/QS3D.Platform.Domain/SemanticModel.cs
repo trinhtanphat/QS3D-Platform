@@ -92,19 +92,45 @@ public sealed class SemanticElement
 
     public void AssignLocation(FloorId? floorId, ZoneId? zoneId)
     {
+        if (floorId.HasValue && floorId.Value.Value == Guid.Empty)
+            throw new ArgumentException("Floor ID must not be empty when supplied.", nameof(floorId));
+        if (zoneId.HasValue && zoneId.Value.Value == Guid.Empty)
+            throw new ArgumentException("Zone ID must not be empty when supplied.", nameof(zoneId));
         FloorId = floorId;
         ZoneId = zoneId;
     }
 
-    public void SetSource(CadReference? source) => SourceReference = source;
-    public bool AddGeneratedReference(CadReference reference) => _generated.Add(reference);
-    public bool RemoveGeneratedReference(CadReference reference) => _generated.Remove(reference);
+    public void SetSource(CadReference? source)
+    {
+        if (source.HasValue) ValidateCadReference(source.Value, nameof(source));
+        SourceReference = source;
+    }
+
+    public bool AddGeneratedReference(CadReference reference)
+    {
+        ValidateCadReference(reference, nameof(reference));
+        return _generated.Add(reference);
+    }
+
+    public bool RemoveGeneratedReference(CadReference reference)
+    {
+        ValidateCadReference(reference, nameof(reference));
+        return _generated.Remove(reference);
+    }
 
     public void SetProperty(string key, string value)
     {
         if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Property key must not be blank.", nameof(key));
         if (value is null) throw new ArgumentNullException(nameof(value));
         _properties[key.Trim()] = value;
+    }
+
+    private static void ValidateCadReference(CadReference reference, string parameterName)
+    {
+        if (reference.DrawingId.Value == Guid.Empty)
+            throw new ArgumentException("CAD reference drawing ID must not be empty.", parameterName);
+        if (string.IsNullOrWhiteSpace(reference.Handle.Value))
+            throw new ArgumentException("CAD reference handle must not be empty.", parameterName);
     }
 }
 
