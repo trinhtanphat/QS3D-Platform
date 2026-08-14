@@ -10,11 +10,13 @@
 - `netstandard2.0` shared boundary for BricsCAD V25/net48 consumption: Geometry, Domain, CAD Abstractions, Application, Quantity, Diagnostics, Persistence, Parity and Families.
 - Finite numeric/geometry primitives, explicit tolerance/unit policies and canonical hexadecimal CAD handles.
 - Project/floor/zone/family/element identities and semantic model with family-kind/location/CAD-reference invariants.
-- Semantic mutation now rejects supplied empty Floor/Zone identities and structurally invalid source/generated CAD references before they can enter canonical project state.
+- Semantic mutation rejects supplied empty Floor/Zone identities, structurally invalid source/generated CAD references and undefined semantic element-kind enum values before they enter canonical project state or snapshots.
 - Host-neutral CAD document/database/transaction/editor/selection/layer/static-block contracts.
 - Command registry/application context, dependency planning, dirty/freshness propagation and stale-regeneration guards.
 - Quantity dimensions/units, deterministic property-based rule evaluation, facts/aggregation, cost/BQ/schedule projections and deterministic CSV projection.
-- Model-health diagnostics including missing semantic references and canonical CAD source/generated ownership conflicts.
+- Quantity value/rule/rate/schedule boundaries reject undefined enum values, empty source drawing/handle identities and null schedule entries before invalid state can be retained.
+- Family-schema boundaries reject undefined semantic kind, parameter type and quantity-dimension values.
+- Model-health diagnostics including missing semantic references and canonical CAD source/generated ownership conflicts; diagnostic findings reject undefined severity values so readiness cannot fail open on an unknown severity.
 - Schema-neutral semantic snapshots, deterministic capture/restore, migration chains and project-container manifest/integrity contracts.
 - Module semantic versions, dependency ranges, deterministic load planning and cycle/missing/version fail-closed behavior.
 - Cross-product golden parity fixture model/runner and reusable CAD adapter conformance harness.
@@ -47,13 +49,11 @@ These implementations prove API semantics and deterministic regressions. They do
 6. Release build of `QS3D.Platform.sln`;
 7. deterministic `QS3D.Platform.SmokeTests`.
 
-The previous documentation note claiming the parity gate was not wired into `validate.sh` is obsolete; the parity gate is part of the authoritative validation path.
-
 ## Current validated checkpoint
 
-Exact source checkpoint `a10c527c7d6c896bc11a7d46007ab40468d141f4` passed GitHub Actions **QS3D Platform CI #83**, run `31776640496`, on 2026-08-14.
+Exact source checkpoint `d179795c5f89a49b54756d99b7b28cc19b9dd6ac` passed GitHub Actions **QS3D Platform CI #92**, run `31777988636`, on 2026-08-14.
 
-The run completed the authoritative validation successfully, including source gates, Release build and deterministic smoke coverage. This is the current shared Platform source/reference validation baseline for consumers to pin.
+The run completed authoritative validation successfully, including source gates, Release build and deterministic smoke coverage. This checkpoint includes the semantic, snapshot, quantity, family-schema, diagnostic-readiness and quantity-schedule fail-closed hardening described above and is the current shared Platform source/reference validation baseline for consumers to pin.
 
 ## Adapter qualification model
 
