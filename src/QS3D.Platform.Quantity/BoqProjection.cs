@@ -20,6 +20,8 @@ public readonly struct Money : IEquatable<Money>
     {
         unchecked { return (Amount.GetHashCode() * 397) ^ StringComparer.Ordinal.GetHashCode(Currency); }
     }
+    public static bool operator ==(Money left, Money right) => left.Equals(right);
+    public static bool operator !=(Money left, Money right) => !left.Equals(right);
     public override string ToString() => $"{Amount} {Currency}";
 }
 
