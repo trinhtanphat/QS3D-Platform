@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace QS3D.Platform.Persistence;
 
@@ -27,7 +29,7 @@ public sealed class ProjectContainerPayload
     public string Sha256Hex { get; }
     public bool Required { get; }
 
-    private static string NormalizeToken(string value, string parameterName)
+    internal static string NormalizeToken(string value, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Payload name must not be blank.", parameterName);
         var normalized = value.Trim().ToLowerInvariant();
@@ -98,9 +100,19 @@ public sealed class ProjectContainerManifest
     public ProjectContainerPayload GetRequired(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Payload name must not be blank.", nameof(name));
-        var normalized = name.Trim().ToLowerInvariant();
+        var normalized = ProjectContainerPayload.NormalizeToken(name, nameof(name));
         return Payloads.FirstOrDefault(payload => StringComparer.Ordinal.Equals(payload.Name, normalized))
             ?? throw new KeyNotFoundException($"Container payload '{normalized}' is not declared.");
+    }
+
+    public static string Hash(byte[] payload)
+    {
+        if (payload is null) throw new ArgumentNullException(nameof(payload));
+        byte[] digest;
+        using (var sha256 = SHA256.Create()) digest = sha256.ComputeHash(payload);
+        var builder = new StringBuilder(digest.Length * 2);
+        foreach (var value in digest) builder.Append(value.ToString("X2", CultureInfo.InvariantCulture));
+        return builder.ToString();
     }
 }
 
@@ -116,5 +128,36 @@ public static class ProjectContainerManifestValidator
         var actual = new ProjectContainerPayload(expected.Name, expected.MediaType, actualLengthBytes, actualSha256Hex, expected.Required);
         if (!StringComparer.Ordinal.Equals(actual.Sha256Hex, expected.Sha256Hex))
             throw new InvalidDataException($"Payload '{expected.Name}' SHA-256 mismatch.");
+    }
+
+    public static void ValidatePayloadSet(ProjectContainerManifest manifest, IReadOnlyDictionary<string, byte[]> payloads)
+    {
+        if (manifest is null) throw new ArgumentNullException(nameof(manifest));
+        if (payloads is null) throw new ArgumentNullException(nameof(payloads));
+
+        var actualByName = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        foreach (var pair in payloads)
+        {
+            var normalized = ProjectContainerPayload.NormalizeToken(pair.Key, nameof(payloads));
+            if (pair.Value is null) throw new InvalidDataException($"Payload '{normalized}' content is null.");
+            if (actualByName.ContainsKey(normalized)) throw new InvalidDataException($"Payload set contains duplicate normalized name '{normalized}'.");
+            actualByName.Add(normalized, pair.Value);
+        }
+
+        var declared = new HashSet<string>(manifest.Payloads.Select(static payload => payload.Name), StringComparer.Ordinal);
+        foreach (var actualName in actualByName.Keys)
+        {
+            if (!declared.Contains(actualName)) throw new InvalidDataException($"Payload set contains unexpected payload '{actualName}'.");
+        }
+
+        foreach (var expected in manifest.Payloads)
+        {
+            if (!actualByName.TryGetValue(expected.Name, out var bytes))
+            {
+                if (expected.Required) throw new InvalidDataException($"Required payload '{expected.Name}' is missing.");
+                continue;
+            }
+            ValidatePayload(manifest, expected.Name, bytes.LongLength, ProjectContainerManifest.Hash(bytes));
+        }
     }
 }
