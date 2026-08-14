@@ -59,9 +59,141 @@ public static class CadBlockReferencePropertyNames
 }
 
 public sealed record CadLayerSnapshot(string Name, bool IsOn = true, bool IsFrozen = false, bool IsLocked = false);
-public sealed record CadEntityDraft(CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string>? Properties = null, string? LayerName = null);
-public sealed record CadEntitySnapshot(CadHandle Handle, CadEntityKind Kind, BoundingBox3 Extents, IReadOnlyDictionary<string, string> Properties, string LayerName = "0");
+
+public sealed record CadEntityDraft
+{
+    private CadEntityKind _kind;
+    private IReadOnlyDictionary<string, string>? _properties;
+    private string? _layerName;
+
+    public CadEntityDraft(CadEntityKind kind, BoundingBox3 extents, IReadOnlyDictionary<string, string>? properties = null, string? layerName = null)
+    {
+        Kind = kind;
+        Extents = extents;
+        Properties = properties;
+        LayerName = layerName;
+    }
+
+    public CadEntityKind Kind
+    {
+        get => _kind;
+        init
+        {
+            CadContractGuard.RequireEntityKind(value, nameof(Kind));
+            _kind = value;
+        }
+    }
+
+    public BoundingBox3 Extents { get; init; }
+
+    public IReadOnlyDictionary<string, string>? Properties
+    {
+        get => _properties;
+        init
+        {
+            CadContractGuard.RequireProperties(value, nameof(Properties), allowNull: true);
+            _properties = value;
+        }
+    }
+
+    public string? LayerName
+    {
+        get => _layerName;
+        init
+        {
+            if (value is not null && string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("CAD entity draft layer name must not be blank when supplied.", nameof(LayerName));
+            _layerName = value;
+        }
+    }
+}
+
+public sealed record CadEntitySnapshot
+{
+    private CadHandle _handle;
+    private CadEntityKind _kind;
+    private IReadOnlyDictionary<string, string> _properties = new Dictionary<string, string>();
+    private string _layerName = "0";
+
+    public CadEntitySnapshot(CadHandle handle, CadEntityKind kind, BoundingBox3 extents, IReadOnlyDictionary<string, string> properties, string layerName = "0")
+    {
+        Handle = handle;
+        Kind = kind;
+        Extents = extents;
+        Properties = properties;
+        LayerName = layerName;
+    }
+
+    public CadHandle Handle
+    {
+        get => _handle;
+        init
+        {
+            if (string.IsNullOrWhiteSpace(value.Value))
+                throw new ArgumentException("CAD entity handle must not be empty.", nameof(Handle));
+            _handle = value;
+        }
+    }
+
+    public CadEntityKind Kind
+    {
+        get => _kind;
+        init
+        {
+            CadContractGuard.RequireEntityKind(value, nameof(Kind));
+            _kind = value;
+        }
+    }
+
+    public BoundingBox3 Extents { get; init; }
+
+    public IReadOnlyDictionary<string, string> Properties
+    {
+        get => _properties;
+        init
+        {
+            CadContractGuard.RequireProperties(value, nameof(Properties), allowNull: false);
+            _properties = value;
+        }
+    }
+
+    public string LayerName
+    {
+        get => _layerName;
+        init
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("CAD entity layer name must not be blank.", nameof(LayerName));
+            _layerName = value;
+        }
+    }
+}
+
 public sealed record CadBlockDefinitionSnapshot(string Name, Point3 BasePoint, IReadOnlyList<CadEntityDraft> Entities);
+
+internal static class CadContractGuard
+{
+    public static void RequireEntityKind(CadEntityKind kind, string parameterName)
+    {
+        if (kind == CadEntityKind.Unknown || !Enum.IsDefined(typeof(CadEntityKind), kind))
+            throw new ArgumentOutOfRangeException(parameterName, kind, "CAD entity kind must be a defined non-Unknown value.");
+    }
+
+    public static void RequireProperties(IReadOnlyDictionary<string, string>? properties, string parameterName, bool allowNull)
+    {
+        if (properties is null)
+        {
+            if (allowNull) return;
+            throw new ArgumentNullException(parameterName);
+        }
+
+        foreach (var pair in properties)
+        {
+            if (pair.Key is null) throw new ArgumentException("CAD entity property key must not be null.", parameterName);
+            if (pair.Value is null) throw new ArgumentException($"CAD entity property '{pair.Key}' value must not be null.", parameterName);
+        }
+    }
+}
 
 public interface ICadHistory
 {
