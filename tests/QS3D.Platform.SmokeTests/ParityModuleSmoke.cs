@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using QS3D.Platform.Diagnostics;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Parity;
 using QS3D.Platform.Persistence;
@@ -44,6 +45,17 @@ internal static class ParityModuleSmoke
         var mismatch = GoldenParityRunner.Run(new GoldenParityFixture("wall-area-mismatch", snapshot, rules,
             expectedQuantities: new[] { new GoldenQuantityExpectation(elementId, "WALL.AREA", QuantityDimension.Area, 8d) }));
         if (mismatch.Passed) throw new InvalidOperationException("Golden parity must reject an incorrect quantity expectation.");
+
+        Throws<ArgumentOutOfRangeException>(() => new GoldenDiagnosticExpectation("BAD", (DiagnosticSeverity)999));
+        Throws<ArgumentOutOfRangeException>(() => new GoldenQuantityExpectation(elementId, "BAD", (QuantityDimension)999, 1d));
+
         Console.WriteLine("PASS cross-product golden parity runner");
+    }
+
+    private static void Throws<T>(Action action) where T : Exception
+    {
+        try { action(); }
+        catch (T) { return; }
+        throw new InvalidOperationException($"Expected {typeof(T).Name}.");
     }
 }

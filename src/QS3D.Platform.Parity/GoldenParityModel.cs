@@ -9,6 +9,7 @@ public sealed class GoldenDiagnosticExpectation
     public GoldenDiagnosticExpectation(string code, DiagnosticSeverity severity, Guid? elementId = null)
     {
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Diagnostic code must not be blank.", nameof(code));
+        if (!Enum.IsDefined(typeof(DiagnosticSeverity), severity)) throw new ArgumentOutOfRangeException(nameof(severity), severity, "Diagnostic severity must be a defined value.");
         if (elementId == Guid.Empty) throw new ArgumentException("Element ID must not be empty when supplied.", nameof(elementId));
         Code = code.Trim();
         Severity = severity;
@@ -25,6 +26,7 @@ public sealed class GoldenQuantityExpectation
     {
         if (elementId == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(elementId));
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Quantity code must not be blank.", nameof(code));
+        if (!Enum.IsDefined(typeof(QuantityDimension), dimension)) throw new ArgumentOutOfRangeException(nameof(dimension), dimension, "Quantity dimension must be a defined value.");
         if (double.IsNaN(canonicalValue) || double.IsInfinity(canonicalValue) || canonicalValue < 0d) throw new ArgumentOutOfRangeException(nameof(canonicalValue));
         if (double.IsNaN(absoluteTolerance) || double.IsInfinity(absoluteTolerance) || absoluteTolerance < 0d) throw new ArgumentOutOfRangeException(nameof(absoluteTolerance));
         ElementId = elementId;
