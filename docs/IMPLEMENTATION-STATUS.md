@@ -13,18 +13,20 @@
 - Semantic mutation and persistence reject supplied empty identities, structurally invalid CAD references and undefined semantic element-kind enum values before invalid state enters canonical project data.
 - CAD entity draft/snapshot contracts reject `Unknown` or undefined entity kinds; snapshots reject empty handles, blank layers and null property collections/values. Init accessors preserve those invariants across `with` expressions.
 - Host-neutral CAD document/database/transaction/editor/selection/layer/static-block contracts.
-- Command registry/application context, dependency planning, dirty/freshness propagation and stale-regeneration guards.
+- Command registry/application context, dependency planning, dirty/freshness propagation and stale-regeneration guards. Dirty-state flags reject unknown bits while preserving valid flag combinations.
 - Quantity dimensions/units, deterministic property-based rule evaluation, facts/aggregation, cost/BQ/schedule projections and deterministic CSV projection.
 - Quantity value/rule/rate/schedule boundaries reject undefined enum values, empty source drawing/handle identities and null schedule entries before invalid state can be retained.
 - Family-schema boundaries reject undefined semantic kind, parameter type and quantity-dimension values.
 - Model-health diagnostics including missing semantic references and canonical CAD source/generated ownership conflicts; findings reject undefined severity values so readiness cannot fail open on an unknown severity.
 - Schema-neutral semantic snapshots, deterministic capture/restore, migration chains and project-container manifest/integrity contracts.
 - Module semantic versions, dependency ranges, deterministic load planning and cycle/missing/version fail-closed behavior.
-- Cross-product golden parity fixture model/runner and reusable CAD adapter conformance harness.
+- Cross-product golden parity fixture model/runner rejects undefined expectation enums; the reusable CAD adapter conformance harness rejects undefined severity values and null findings so conformance cannot pass on corrupted severity data.
 
 ## Deterministic reference services
 
 `QS3D.Platform.InMemory` is a non-production `net8.0` reference adapter used to exercise contracts without a proprietary/native CAD SDK. It includes transactional database/history/layer/block behavior, viewport/snap/spatial selection, reference Xref/Layout/Plot lifecycle and a weak document-scoped advanced-service registry.
+
+Reference-service inputs fail closed on undefined Xref/plot/view/selection enum values and unknown snap flag bits. Defined but deliberately unsupported reference snap kinds remain valid inputs and do not manufacture native behavior.
 
 These implementations prove API semantics and deterministic regressions. They do **not** qualify `CadCapabilities` for a production native adapter.
 
@@ -40,11 +42,11 @@ These implementations prove API semantics and deterministic regressions. They do
 6. Release build of `QS3D.Platform.sln`;
 7. deterministic `QS3D.Platform.SmokeTests`.
 
-## Current validated checkpoint
+## Validated development checkpoint
 
-Exact current source checkpoint **`986d5baa00065a1adb53e53733811beb9cf0a2d9`** passed GitHub Actions **QS3D Platform CI #94**, run **`31778331523`**, on 2026-08-14.
+Exact source checkpoint **`6f720e796334a4a1acc93e0fe8736ab938412913`** passed GitHub Actions **QS3D Platform CI #100**, run **`31783236730`**, on 2026-08-14.
 
-That run validates all prior semantic/snapshot/quantity/family/diagnostic/schedule fail-closed hardening plus the CAD entity contract invariants. `QS3D-CAD` pins this exact Platform SHA for its current cross-repository validation lane.
+That checkpoint includes the semantic/snapshot/quantity/family/diagnostic/schedule/CAD-entity hardening plus conformance-severity validation, dirty-flag masking, parity-expectation validation and advanced reference-input fail-closed guards described above. It is the Platform source checkpoint selected for the current QS3D-CAD development validation lane.
 
 ## Adapter qualification model
 
