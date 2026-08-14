@@ -28,6 +28,12 @@ internal static class DirtyStateModuleSmoke
         Require(clean.Reasons == DirtyReason.None, "clean state must clear reasons");
         Require(tracker.GetDirty().Select(static x => x.NodeId).SequenceEqual(new[] { "quantity", "wall" }, StringComparer.Ordinal), "remaining dirty nodes must be deterministic");
 
+        var combinedTracker = new DirtyStateTracker();
+        var combined = combinedTracker.MarkDirty("combined", DirtyReason.DirectMutation | DirtyReason.RuleChanged);
+        Require(combined.Reasons == (DirtyReason.DirectMutation | DirtyReason.RuleChanged), "defined dirty flags must compose");
+        Throws<ArgumentOutOfRangeException>(() => combinedTracker.MarkDirty("bad", (DirtyReason)(1 << 10)));
+        Throws<ArgumentOutOfRangeException>(() => combinedTracker.MarkImpact(graph, new[] { "wall" }, (DirtyReason)(1 << 10)));
+
         Console.WriteLine("PASS dirty freshness module");
     }
 

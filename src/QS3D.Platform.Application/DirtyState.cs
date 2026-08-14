@@ -20,6 +20,12 @@ public sealed record DirtyStateSnapshot(
 
 public sealed class DirtyStateTracker
 {
+    private const DirtyReason KnownReasons = DirtyReason.DirectMutation
+        | DirtyReason.DependencyChanged
+        | DirtyReason.SourceGeometryChanged
+        | DirtyReason.RuleChanged
+        | DirtyReason.ManualInvalidation;
+
     private readonly Dictionary<string, State> _states = new(StringComparer.Ordinal);
     private long _revision;
 
@@ -36,7 +42,7 @@ public sealed class DirtyStateTracker
     public DirtyStateSnapshot MarkDirty(string nodeId, DirtyReason reason)
     {
         var id = Normalize(nodeId, nameof(nodeId));
-        if (reason == DirtyReason.None) throw new ArgumentOutOfRangeException(nameof(reason), "Dirty reason must not be None.");
+        RequireReason(reason, nameof(reason));
         if (!_states.TryGetValue(id, out var state))
         {
             state = new State();
@@ -82,7 +88,7 @@ public sealed class DirtyStateTracker
     {
         if (graph is null) throw new ArgumentNullException(nameof(graph));
         if (changedNodeIds is null) throw new ArgumentNullException(nameof(changedNodeIds));
-        if (rootReason == DirtyReason.None) throw new ArgumentOutOfRangeException(nameof(rootReason));
+        RequireReason(rootReason, nameof(rootReason));
 
         var roots = new HashSet<string>(changedNodeIds.Select(static id => Normalize(id, nameof(changedNodeIds))), StringComparer.Ordinal);
         if (roots.Count == 0) return Array.Empty<DirtyStateSnapshot>();
@@ -95,6 +101,12 @@ public sealed class DirtyStateTracker
                 roots.Contains(nodeId) ? rootReason : DirtyReason.DependencyChanged));
         }
         return result;
+    }
+
+    private static void RequireReason(DirtyReason reason, string parameterName)
+    {
+        if (reason == DirtyReason.None || (reason & ~KnownReasons) != 0)
+            throw new ArgumentOutOfRangeException(parameterName, reason, "Dirty reason must contain only defined non-None flag bits.");
     }
 
     private static string Normalize(string value, string parameterName)
