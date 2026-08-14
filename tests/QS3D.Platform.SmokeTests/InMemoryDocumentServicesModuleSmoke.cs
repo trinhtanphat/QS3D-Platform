@@ -12,6 +12,7 @@ internal static class InMemoryDocumentServicesModuleSmoke
         var xrefs = new InMemoryXrefService(path => StringComparer.Ordinal.Equals(path, "exists.dwg"));
         Equal(CadXrefStatus.Loaded, xrefs.Attach("exists.dwg", "Base", CadXrefKind.Attach).Status);
         Equal(CadXrefStatus.Missing, xrefs.Attach("missing.dwg", "Missing", CadXrefKind.Overlay).Status);
+        Throws<ArgumentOutOfRangeException>(() => xrefs.Attach("exists.dwg", "Bad", (CadXrefKind)999));
         xrefs.Unload("Base");
         Equal(CadXrefStatus.Unloaded, xrefs.GetXrefs().Single(item => item.Name == "Base").Status);
         xrefs.Reload("Base");
@@ -34,6 +35,7 @@ internal static class InMemoryDocumentServicesModuleSmoke
         var plot = new InMemoryPlotService(layouts);
         var missing = plot.Plot(new CadPlotRequest("Missing", CadPlotTargetKind.Pdf, "missing.pdf"));
         Require(!missing.Succeeded && plot.Requests.Count == 0, "missing layout must not be recorded");
+        Throws<ArgumentOutOfRangeException>(() => plot.Plot(new CadPlotRequest("Model", (CadPlotTargetKind)999, "bad.out")));
         var recorded = plot.Plot(new CadPlotRequest("Model", CadPlotTargetKind.Pdf, "model.pdf"));
         Require(!recorded.Succeeded, "reference plot recorder must not claim output success");
         Require(recorded.OutputPath is null, "reference plot recorder must not manufacture output path");

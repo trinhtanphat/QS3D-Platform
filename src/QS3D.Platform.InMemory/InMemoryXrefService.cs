@@ -16,6 +16,8 @@ public sealed class InMemoryXrefService : ICadXrefService
 
     public CadXrefSnapshot Attach(string path, string name, CadXrefKind kind)
     {
+        if (!Enum.IsDefined(typeof(CadXrefKind), kind))
+            throw new ArgumentOutOfRangeException(nameof(kind), kind, "Xref kind must be a defined value.");
         var normalizedName = Normalize(name, "Xref name");
         var normalizedPath = Normalize(path, "Xref path");
         if (_xrefs.ContainsKey(normalizedName)) throw new InvalidOperationException($"Xref '{normalizedName}' already exists.");

@@ -15,6 +15,8 @@ public sealed class InMemorySpatialSelectionService : ICadSpatialSelectionServic
     public IReadOnlyList<CadHandle> SelectPolygon(IReadOnlyList<Point3> points, CadSelectionMode mode)
     {
         if (points is null) throw new ArgumentNullException(nameof(points));
+        if (!Enum.IsDefined(typeof(CadSelectionMode), mode))
+            throw new ArgumentOutOfRangeException(nameof(mode), mode, "Selection mode must be a defined value.");
         if (points.Count < 3) throw new ArgumentException("Selection polygon must contain at least three points.", nameof(points));
         if (PolygonAreaMagnitude(points) <= OrientationTolerance)
             throw new ArgumentException("Selection polygon must enclose a non-zero XY area.", nameof(points));

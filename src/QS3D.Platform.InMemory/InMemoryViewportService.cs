@@ -105,6 +105,8 @@ public sealed class InMemoryViewportService : ICadViewportService
 
     private static void ValidateView(CadViewState view)
     {
+        if (!Enum.IsDefined(typeof(CadViewProjection), view.Projection))
+            throw new ArgumentOutOfRangeException(nameof(view), view.Projection, "View projection must be a defined value.");
         if (!Numeric.IsFinite(view.Width) || view.Width <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View width must be positive and finite.");
         if (!Numeric.IsFinite(view.Height) || view.Height <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View height must be positive and finite.");
         var direction = Normalize(view.Direction);

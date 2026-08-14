@@ -48,6 +48,12 @@ internal static class InMemorySpatialSelectionModuleSmoke
             new Point3(0, 0), new Point3(1, 0), new Point3(2, 0)
         }, CadSelectionMode.Window));
 
+        var emptyService = new InMemorySpatialSelectionService(new InMemoryCadDatabase());
+        Throws<ArgumentOutOfRangeException>(() => emptyService.SelectPolygon(new[]
+        {
+            new Point3(0, 0), new Point3(5, 0), new Point3(5, 5), new Point3(0, 5)
+        }, (CadSelectionMode)999));
+
         Console.WriteLine("PASS in-memory spatial selection reference service");
     }
 

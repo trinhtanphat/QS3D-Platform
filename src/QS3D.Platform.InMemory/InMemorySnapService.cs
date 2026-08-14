@@ -6,6 +6,16 @@ namespace QS3D.Platform.InMemory;
 
 public sealed class InMemorySnapService : ICadSnapService
 {
+    private const CadSnapKind KnownKinds = CadSnapKind.Endpoint
+        | CadSnapKind.Midpoint
+        | CadSnapKind.Center
+        | CadSnapKind.Intersection
+        | CadSnapKind.Perpendicular
+        | CadSnapKind.Tangent
+        | CadSnapKind.Nearest
+        | CadSnapKind.Quadrant
+        | CadSnapKind.Extension;
+
     private readonly ICadDatabase _database;
     private readonly InMemoryViewportService _viewport;
 
@@ -19,6 +29,8 @@ public sealed class InMemorySnapService : ICadSnapService
     {
         if (!Numeric.IsFinite(aperturePixels) || aperturePixels < 0d)
             throw new ArgumentOutOfRangeException(nameof(aperturePixels));
+        if ((enabledKinds & ~KnownKinds) != 0)
+            throw new ArgumentOutOfRangeException(nameof(enabledKinds), enabledKinds, "Snap kinds contain unknown flag bits.");
         if (enabledKinds == CadSnapKind.None) return Array.Empty<CadSnapCandidate>();
 
         using var tx = _database.BeginTransaction(CadTransactionMode.ReadOnly);

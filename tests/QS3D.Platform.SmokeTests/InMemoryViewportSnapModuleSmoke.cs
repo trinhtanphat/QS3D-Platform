@@ -31,6 +31,8 @@ internal static class InMemoryViewportSnapModuleSmoke
         Nearly(4.2d, viewport.CurrentView.Height, 1e-12d);
         Throws<ArgumentException>(() => viewport.SetView(new CadViewState(
             new Point3(0, 0), new Vector3(0, 0, -1), new Vector3(0, 0, 1), 10d, 10d)));
+        Throws<ArgumentOutOfRangeException>(() => viewport.SetView(new CadViewState(
+            new Point3(0, 0), new Vector3(0, 0, -1), new Vector3(0, 1, 0), 10d, 10d, (CadViewProjection)999)));
 
         viewport.SetView(new CadViewState(
             new Point3(0, 0), new Vector3(0, 0, -1), new Vector3(0, 1, 0), 100d, 100d));
@@ -52,6 +54,7 @@ internal static class InMemoryViewportSnapModuleSmoke
             "nearest snap must expose line AABB nearest point");
 
         Equal(0, snaps.Query(new Point3(0, 0), 100d, CadSnapKind.Intersection | CadSnapKind.Tangent).Count);
+        Throws<ArgumentOutOfRangeException>(() => snaps.Query(new Point3(0, 0), 1d, (CadSnapKind)(1 << 20)));
 
         Console.WriteLine("PASS in-memory viewport and snap reference services");
     }
