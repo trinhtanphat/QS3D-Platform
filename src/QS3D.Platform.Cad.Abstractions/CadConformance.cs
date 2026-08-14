@@ -113,7 +113,7 @@ public static class CadAdapterConformance
         CadHandle handle;
         using (var tx = document.Database.BeginTransaction())
         {
-            tx.CreateLayer(new CadLayerSnapshot("QA-LOCKED"));
+            tx.CreateLayer("QA-LOCKED");
             handle = tx.Append(new CadEntityDraft(CadEntityKind.Line, LineDraft().Extents, null, "QA-LOCKED"));
             tx.Commit();
         }
@@ -134,10 +134,7 @@ public static class CadAdapterConformance
         CadHandle reference;
         using (var tx = document.Database.BeginTransaction())
         {
-            tx.CreateBlock(new CadBlockDefinitionSnapshot(
-                "QA-BLOCK",
-                new Point3(0, 0),
-                new[] { LineDraft() }));
+            tx.CreateBlock("QA-BLOCK", new Point3(0, 0), new[] { LineDraft() });
             reference = tx.InsertBlock("QA-BLOCK", new Point3(5, 5));
             tx.Commit();
         }
