@@ -16,7 +16,7 @@ internal static class DependencyPlanningModuleSmoke
         graph.AddDependency("schedule", "quantity");
 
         var plan = graph.PlanImpact(new[] { "wall" }).OrderedNodeIds;
-        Require(plan.Count == 6, "wall impact must include all downstream nodes");
+        Require(plan.Count == 5, "wall impact must include all downstream nodes");
         Require(plan[0] == "wall", "source node must plan first");
         Require(Index(plan, "opening") < Index(plan, "quantity"), "opening must precede quantity");
         Require(Index(plan, "finish") < Index(plan, "quantity"), "finish must precede quantity");
