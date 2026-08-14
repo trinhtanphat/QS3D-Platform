@@ -17,7 +17,7 @@ public sealed class InMemorySnapService : ICadSnapService
 
     public IReadOnlyList<CadSnapCandidate> Query(Point3 worldPoint, double aperturePixels, CadSnapKind enabledKinds)
     {
-        if (!double.IsFinite(aperturePixels) || aperturePixels < 0d)
+        if (!Numeric.IsFinite(aperturePixels) || aperturePixels < 0d)
             throw new ArgumentOutOfRangeException(nameof(aperturePixels));
         if (enabledKinds == CadSnapKind.None) return Array.Empty<CadSnapCandidate>();
 
@@ -82,7 +82,7 @@ public sealed class InMemorySnapService : ICadSnapService
         double aperturePixels)
     {
         var distance = _viewport.PixelDistance(query, point);
-        if (double.IsFinite(distance) && distance <= aperturePixels)
+        if (Numeric.IsFinite(distance) && distance <= aperturePixels)
             output.Add(new CadSnapCandidate(handle, kind, point, distance));
     }
 
