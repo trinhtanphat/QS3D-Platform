@@ -15,6 +15,8 @@ public sealed class CadConformanceFinding
     public CadConformanceFinding(string code, CadConformanceSeverity severity, string message)
     {
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Conformance code must not be blank.", nameof(code));
+        if (!Enum.IsDefined(typeof(CadConformanceSeverity), severity))
+            throw new ArgumentOutOfRangeException(nameof(severity), severity, "Conformance severity must be a defined value.");
         if (string.IsNullOrWhiteSpace(message)) throw new ArgumentException("Conformance message must not be blank.", nameof(message));
         Code = code.Trim();
         Severity = severity;
@@ -31,7 +33,10 @@ public sealed class CadConformanceReport
     public CadConformanceReport(IEnumerable<CadConformanceFinding> findings)
     {
         if (findings is null) throw new ArgumentNullException(nameof(findings));
-        Findings = findings.OrderByDescending(static finding => finding.Severity)
+        var copied = findings.ToArray();
+        if (copied.Any(static finding => finding is null))
+            throw new ArgumentException("Conformance findings must not contain null entries.", nameof(findings));
+        Findings = copied.OrderByDescending(static finding => finding.Severity)
             .ThenBy(static finding => finding.Code, StringComparer.Ordinal)
             .ToArray();
     }

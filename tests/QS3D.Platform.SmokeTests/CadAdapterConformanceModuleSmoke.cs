@@ -18,6 +18,12 @@ internal static class CadAdapterConformanceModuleSmoke
         }
         Equal(0, report.ErrorCount);
         Equal(6, report.Findings.Count);
+        RequireThrows<ArgumentOutOfRangeException>(
+            () => new CadConformanceFinding("BAD_SEVERITY", (CadConformanceSeverity)999, "corrupt"),
+            "Undefined conformance severity was accepted.");
+        RequireThrows<ArgumentException>(
+            () => new CadConformanceReport(new CadConformanceFinding[] { null! }),
+            "Null conformance finding was accepted.");
         Console.WriteLine("PASS shared CAD adapter conformance harness");
     }
 
@@ -35,5 +41,12 @@ internal static class CadAdapterConformanceModuleSmoke
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
             throw new InvalidOperationException($"Expected {expected} but got {actual}.");
+    }
+
+    private static void RequireThrows<T>(Action action, string message) where T : Exception
+    {
+        try { action(); }
+        catch (T) { return; }
+        throw new InvalidOperationException(message);
     }
 }
