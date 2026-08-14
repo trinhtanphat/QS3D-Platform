@@ -17,7 +17,7 @@ public sealed class InMemoryViewportService : ICadViewportService
 
     public void SetView(CadViewState view)
     {
-        ArgumentNullException.ThrowIfNull(view);
+        if (view is null) throw new ArgumentNullException(nameof(view));
         ValidateView(view);
         _view = view;
     }
@@ -45,7 +45,7 @@ public sealed class InMemoryViewportService : ICadViewportService
         var height = Span(bounds.Min.Y, bounds.Max.Y);
         width = Math.Max(width, GeometryTolerance.Default.LinearM) * 1.05d;
         height = Math.Max(height, GeometryTolerance.Default.LinearM) * 1.05d;
-        if (!double.IsFinite(width) || !double.IsFinite(height))
+        if (!Numeric.IsFinite(width) || !Numeric.IsFinite(height))
             throw new InvalidOperationException("Drawing extents are too large to represent as a finite view.");
         _view = _view with
         {
@@ -57,7 +57,7 @@ public sealed class InMemoryViewportService : ICadViewportService
 
     public IReadOnlyList<CadHitTestResult> HitTest(Point3 worldPoint, double aperturePixels)
     {
-        if (!double.IsFinite(aperturePixels) || aperturePixels < 0d)
+        if (!Numeric.IsFinite(aperturePixels) || aperturePixels < 0d)
             throw new ArgumentOutOfRangeException(nameof(aperturePixels));
         using var tx = _database.BeginTransaction(CadTransactionMode.ReadOnly);
         return tx.Query()
@@ -66,7 +66,7 @@ public sealed class InMemoryViewportService : ICadViewportService
                 var candidate = ClosestPoint(entity.Extents, worldPoint);
                 return new CadHitTestResult(entity.Handle, candidate, PixelDistance(worldPoint, candidate));
             })
-            .Where(static result => double.IsFinite(result.DistancePixels))
+            .Where(static result => Numeric.IsFinite(result.DistancePixels))
             .Where(result => result.DistancePixels <= aperturePixels)
             .OrderBy(static result => result.DistancePixels)
             .ThenBy(static result => result.Handle)
@@ -104,8 +104,8 @@ public sealed class InMemoryViewportService : ICadViewportService
 
     private static void ValidateView(CadViewState view)
     {
-        if (!double.IsFinite(view.Width) || view.Width <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View width must be positive and finite.");
-        if (!double.IsFinite(view.Height) || view.Height <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View height must be positive and finite.");
+        if (!Numeric.IsFinite(view.Width) || view.Width <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View width must be positive and finite.");
+        if (!Numeric.IsFinite(view.Height) || view.Height <= 0d) throw new ArgumentOutOfRangeException(nameof(view), "View height must be positive and finite.");
         var direction = Normalize(view.Direction);
         var up = Normalize(view.Up);
         if (Cross(direction, up).Length <= GeometryTolerance.Default.AngularRadians)
@@ -149,7 +149,7 @@ public sealed class InMemoryViewportService : ICadViewportService
         var ay = Math.Abs(y);
         var scale = Math.Max(ax, ay);
         if (scale == 0d) return 0d;
-        if (!double.IsFinite(scale)) return double.PositiveInfinity;
+        if (!Numeric.IsFinite(scale)) return double.PositiveInfinity;
         var sx = x / scale;
         var sy = y / scale;
         return scale * Math.Sqrt((sx * sx) + (sy * sy));
