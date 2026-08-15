@@ -156,7 +156,7 @@ public sealed class CostBenchmarkService
         decimal? deviation = null;
         if (candidateUnitCost.HasValue)
             deviation = average == 0m ? (candidateUnitCost.Value == 0m ? 0m : null) : (candidateUnitCost.Value - average) / average * 100m;
-        return new CostBenchmarkResult(values.Length, values[0], values[^1], average, median, candidateUnitCost, deviation);
+        return new CostBenchmarkResult(values.Length, values[0], values[values.Length - 1], average, median, candidateUnitCost, deviation);
     }
 }
 
@@ -553,7 +553,7 @@ public sealed class TimePhasedCostItem
     {
         ItemId = Text.Require(itemId, nameof(itemId));
         if (periodStartUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("Period timestamp must be UTC.", nameof(periodStartUtc));
-        if (baselineValue < 0m || actualValue < 0m || certifiedValue < 0m) throw new ArgumentOutOfRangeException("Time-phased values must be non-negative.");
+        if (baselineValue < 0m || actualValue < 0m || certifiedValue < 0m) throw new ArgumentOutOfRangeException(nameof(baselineValue), "Time-phased values must be non-negative.");
         PeriodStartUtc = periodStartUtc;
         BaselineValue = baselineValue;
         ActualValue = actualValue;
