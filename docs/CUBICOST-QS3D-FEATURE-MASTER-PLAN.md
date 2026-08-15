@@ -24,7 +24,7 @@ The full Cubicost-style feature family does **not** belong entirely in `QS3D-Bri
 - `DONE_BRX` — BricsCAD-native implementation exists.
 - `DONE_QS3D_CORE` — currently implemented in legacy host-neutral `QS3D-BricsCAD/src/QS3D.Core`; candidate for Platform convergence.
 - `PARTIAL` — useful foundation exists but advertised workflow is incomplete.
-- `NEXT_SHARED` — belongs in Platform and is planned/implemented by #13.
+- `NEXT_SHARED` — belongs in Platform but is outside the current completed shared wave.
 - `NEXT_BRX` — belongs in BricsCAD adapter/UI.
 - `NEXT_ACAD` — AutoCAD adapter parity.
 - `NEXT_DESKTOP` — standalone CAD parity.
@@ -70,20 +70,20 @@ QS3D-BricsCAD already has broad rebar functionality: beam longitudinal/stirrups,
 
 | Capability | Status | Ownership |
 |---|---|---|
-| MEP element kinds and semantic grouping | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
-| system/specification/region classification | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
-| configurable Layer/BlockName recognition profile | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
-| fail-closed unmatched/ambiguous recognition | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
-| deterministic count/length/area/volume aggregation | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| MEP element kinds and semantic grouping | DONE_SHARED + DONE_QS3D_CORE | Platform canonical target |
+| system/specification/region classification | DONE_SHARED + DONE_QS3D_CORE | Platform canonical target |
+| configurable Layer/BlockName recognition profile | DONE_SHARED + DONE_QS3D_CORE | Platform canonical target |
+| fail-closed unmatched/ambiguous recognition | DONE_SHARED + DONE_QS3D_CORE | Platform canonical target |
+| deterministic count/length/area/volume aggregation | DONE_SHARED + DONE_QS3D_CORE | Platform canonical target |
 | native BricsCAD selected-entity takeoff `QS3DMEPTAKEOFF` | DONE_BRX | BricsCAD |
-| broad-phase hard/clearance clash `QS3DMEPCLASH` | DONE_BRX + shared Core | Platform math + BricsCAD extraction |
+| broad-phase hard/clearance clash `QS3DMEPCLASH` | DONE_SHARED + DONE_BRX | Platform math + BricsCAD extraction |
 | clash Locate/select `QS3DMEPCLASHLOCATE` | DONE_BRX | BricsCAD |
 | exact `Solid3d.CheckInterference` hard clash `QS3DMEPEXACTCLASH` | DONE_BRX / LOCAL_ONLY | BricsCAD |
 | transient exact-clash highlight review | source-ready PR lane / LOCAL_ONLY | BricsCAD |
 | zoom/camera to reviewed clash | NEXT_BRX / LOCAL_ONLY | BricsCAD |
 | modeless clash review palette | NEXT_BRX | BricsCAD |
-| persistent clash issues/status/assignee/comments | NEXT_SHARED + adapter persistence/UI | Platform contract + hosts |
-| recognition-profile persistence/editor | NEXT_SHARED + NEXT_BRX/NEXT_ACAD | Platform profile schema + host UI |
+| persistent clash issues/status/assignee/comments | DONE_SHARED contract; NEXT_BRX/NEXT_ACAD UI/persistence bridge | Platform contract + hosts |
+| recognition-profile catalog/persistence model | DONE_SHARED contract; NEXT_BRX/NEXT_ACAD editor | Platform schema + host UI |
 | MEP rule authoring (duct/pipe/cable/fittings/equipment) | PARTIAL | Platform quantity/rule engine |
 | MEP reports to BQ/cost | PARTIAL | Platform projection + host export |
 | AutoCAD MEP adapter parity | NEXT_ACAD | AutoCAD |
@@ -91,7 +91,7 @@ QS3D-BricsCAD already has broad rebar functionality: beam longitudinal/stirrups,
 
 ## 6. TBQ-style digital BQ / estimating / cost management
 
-Shared clean-room scope:
+Shared clean-room contracts delivered by #13 cover:
 
 1. BQ/item library with deterministic identity and duplicate rejection.
 2. resource/rate build-up (labour/material/plant/subcontract/other components).
@@ -99,34 +99,28 @@ Shared clean-room scope:
 4. historical BQ/rate catalog.
 5. multi-dimensional historical benchmark statistics.
 6. rate-reference marks and reverse BQ/rate lookup.
-7. build-up analysis and applied-rate traceability.
-8. adjust-cost by delta/ratio/target total.
+7. build-up analysis and applied-rate traceability foundation.
+8. adjust-cost by ratio/target total.
 9. trade analysis and CFA/cost-per-area projection.
-10. smart/batch rate application foundation.
+10. smart/batch rate application with priority and fail-closed ambiguity.
 11. tender BOQ requirements and bid lines.
 12. completeness checking and missing-item evidence.
 13. comparable total and deterministic ranking of complete bids.
-14. reasonability/benchmark checks as policy extensions.
+14. reasonability/benchmark foundation through the shared benchmark service.
 15. tender revision/addendum comparison contracts.
 16. multi-round tender evaluation model.
 17. progress contract items and claims.
 18. certified quantity cap, overclaim rejection, retention and net certification.
-19. quantity/value traceability from progress back to BQ/model identity.
-20. time-phased quantity/cost baseline and actuals for 4D/5D monitoring.
+19. stable identity surfaces for later model/BQ trace bridges.
+20. time-phased baseline/actual/certified cost projection for 4D/5D monitoring.
 
-Existing `QS3D-BricsCAD/src/QS3D.Core` already implements much of items 1-9 and 11-18. #13 establishes the equivalent shared Platform contract as the long-term canonical surface.
+Existing `QS3D-BricsCAD/src/QS3D.Core` already implements much of this production-oriented behavior. Platform is the long-term multi-host canonical contract, with migration performed by golden parity rather than bulk replacement.
 
 Native BQ tables, XLSX/CSV/report rendering and palette interaction stay in the consuming product repository. Tender-PDF OCR/table recognition is FORMAT_SCOPE. Organization-wide shared libraries, multi-user supplier submission and online permissions are SERVICE_SCOPE.
 
 ## 7. 4D/5D lifecycle
 
-Shared Platform responsibilities:
-
-- semantic activity/work-package IDs;
-- quantity/cost assignment to time buckets;
-- baseline vs actual/progress value projection;
-- deterministic earned/progress quantities and cost curves;
-- revision impact snapshots.
+Shared Platform responsibilities now include the deterministic time-phased cost baseline/actual/certified projection. Further shared lifecycle convergence should add semantic activity/work-package IDs and deeper quantity/model revision linkage.
 
 Host responsibilities:
 
@@ -140,31 +134,30 @@ Server/service responsibilities:
 
 ## 8. Deep CAD-identification workflow parity
 
-Vendor-neutral configuration belongs in Platform:
+Vendor-neutral configuration delivered in Platform includes:
 
 - import-hatch filtering policy;
 - select-by-color classification rules;
 - beam size read mode (`Width×Height` vs `Height×Width`);
 - beam end-extension policy/tolerance;
-- recognition confidence/result state;
-- fail-closed ambiguity;
-- PDF text-recognition/restore **capability contract only**.
+- fail-closed recognition contracts;
+- PDF text-recognition/restore **capability flags only**.
 
 Actual DWG/PDF/JPG parsing and native entity mutation are adapter/FORMAT_SCOPE work.
 
 ## 9. Coordination/review architecture
 
-Shared Platform issue contract should carry only stable semantic/native references and review data:
+Platform now defines a vendor-neutral coordination issue contract carrying:
 
 - issue ID/type/severity/status;
-- left/right semantic IDs and stable CAD references;
+- left/right semantic IDs and optional stable `CadReference` values;
 - discipline/category/system/region context;
 - hard/clearance/exact evidence kind;
-- measured separation/overlap when available;
-- title/description/assignee/comment history timestamps;
-- deterministic state transition validation.
+- measured separation;
+- title/assignee/comment history timestamps;
+- deterministic state transition and monotonic timestamp validation.
 
-No Platform API may expose `ObjectId`, `DBObject`, `Solid3d`, Autodesk/Bricsys/ODA types.
+No Platform API exposes `ObjectId`, `DBObject`, `Solid3d`, Autodesk/Bricsys/ODA types.
 
 ## 10. Cubicost-Manager-style workspace
 
@@ -175,26 +168,30 @@ Split deliberately:
 - shared module compatibility/version contracts -> Platform;
 - license portfolio/account/service state -> service/product-shell scope, not CAD domain.
 
-## 11. Immediate implementation order
+## 11. Implementation waves
 
 ### Wave A — shared parity baseline (#13)
 
 - [x] publish architecture/feature master plan;
-- [ ] shared MEP recognition + aggregation;
-- [ ] shared clash envelope contract;
-- [ ] shared BQ/rate/benchmark/tender/progress contracts;
-- [ ] shared time-phased 4D/5D cost projection;
-- [ ] deterministic smoke coverage;
-- [ ] vendor-neutral source guard;
-- [ ] migration map from BricsCAD Core to Platform.
+- [x] shared MEP recognition + aggregation;
+- [x] shared clash envelope contract;
+- [x] shared BQ/rate/benchmark/tender/progress contracts;
+- [x] smart rate, tender revision and multi-round evaluation foundations;
+- [x] shared time-phased 4D/5D cost projection;
+- [x] shared CAD-identification configuration and coordination issue contracts;
+- [x] deterministic smoke coverage;
+- [x] vendor-neutral/netstandard source guard;
+- [x] migration map from BricsCAD Core to Platform.
+
+Wave A is **SOURCE_READY** on the #13 implementation branch. It is not `main`-integrated until the repository integration process lands it, and Platform tests do not constitute native CAD qualification.
 
 ### Wave B — BricsCAD review UX
 
 - integrate exact-clash transient highlight lane;
 - zoom-to-clash with robust WCS/DCS behavior;
 - modeless clash palette;
-- persisted clash review issues;
-- recognition profile editor/persistence;
+- persist/restore shared coordination issues through BricsCAD project storage;
+- recognition profile editor/persistence bridge;
 - MEP rule editor/report wiring;
 - licensed V25 exact-SHA qualification.
 
