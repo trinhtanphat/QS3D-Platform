@@ -22,6 +22,7 @@ The full Cubicost-style feature family does **not** belong entirely in `QS3D-Bri
 
 - `DONE_SHARED` — source-complete host-neutral contract exists in Platform.
 - `DONE_BRX` — BricsCAD-native implementation exists.
+- `SOURCE_READY_HOST` — consuming-host source is implemented, pushed, reviewable and exact-head CI green, but not yet integrated and/or native-qualified.
 - `DONE_QS3D_CORE` — currently implemented in legacy host-neutral `QS3D-BricsCAD/src/QS3D.Core`; candidate for Platform convergence.
 - `PARTIAL` — useful foundation exists but advertised workflow is incomplete.
 - `NEXT_SHARED` — belongs in Platform but is outside the current completed shared wave.
@@ -30,7 +31,7 @@ The full Cubicost-style feature family does **not** belong entirely in `QS3D-Bri
 - `NEXT_DESKTOP` — standalone CAD parity.
 - `FORMAT_SCOPE` — external-format/OCR/import lane requiring separate approval/evidence.
 - `SERVICE_SCOPE` — server/team/service capability, outside vendor-neutral CAD libraries.
-- `LOCAL_ONLY` — source may be remote-safe, but native host truth requires real licensed runtime evidence.
+- `LOCAL_ONLY` / `PENDING_NATIVE` — source may be remote-safe, but native host truth requires real licensed runtime evidence.
 
 ## 3. TAS-style architecture/structure takeoff
 
@@ -79,15 +80,22 @@ QS3D-BricsCAD already has broad rebar functionality: beam longitudinal/stirrups,
 | broad-phase hard/clearance clash `QS3DMEPCLASH` | DONE_SHARED + DONE_BRX | Platform math + BricsCAD extraction |
 | clash Locate/select `QS3DMEPCLASHLOCATE` | DONE_BRX | BricsCAD |
 | exact `Solid3d.CheckInterference` hard clash `QS3DMEPEXACTCLASH` | DONE_BRX / LOCAL_ONLY | BricsCAD |
-| transient exact-clash highlight review | source-ready PR lane / LOCAL_ONLY | BricsCAD |
-| zoom/camera to reviewed clash | NEXT_BRX / LOCAL_ONLY | BricsCAD |
-| modeless clash review palette | NEXT_BRX | BricsCAD |
-| persistent clash issues/status/assignee/comments | DONE_SHARED contract; NEXT_BRX/NEXT_ACAD UI/persistence bridge | Platform contract + hosts |
-| recognition-profile catalog/persistence model | DONE_SHARED contract; NEXT_BRX/NEXT_ACAD editor | Platform schema + host UI |
+| transient exact-clash highlight review | DONE_BRX / LOCAL_ONLY | BricsCAD |
+| zoom/camera to reviewed selection `QS3DMEPZOOMSELECTION` | DONE_BRX / LOCAL_ONLY | BricsCAD |
+| modeless MEP/clash review palette `QS3DMEPREVIEW` | DONE_BRX / LOCAL_ONLY | BricsCAD |
+| persistent clash issues/status/assignee/comments | DONE_SHARED contract; NEXT_BRX/NEXT_ACAD persistence bridge | Platform contract + hosts |
+| recognition-profile catalog/persistence/editor | DONE_SHARED contract + DONE_BRX user-profile editor; NEXT_ACAD editor | Platform schema + host UI |
 | MEP rule authoring (duct/pipe/cable/fittings/equipment) | PARTIAL | Platform quantity/rule engine |
 | MEP reports to BQ/cost | PARTIAL | Platform projection + host export |
-| AutoCAD MEP adapter parity | NEXT_ACAD | AutoCAD |
-| standalone MEP reference workflows | NEXT_DESKTOP | QS3D-CAD |
+| AutoCAD MEP takeoff/clash/Locate/exact/zoom adapter | SOURCE_READY_HOST / PENDING_NATIVE — AutoCAD #58 / PR #59, exact `96cfa7b4…`, CI #204 green | AutoCAD consuming Platform `e029d4ba…` |
+| standalone MEP recognition/takeoff/clash/Locate/issues | SOURCE_READY_HOST / PENDING_NATIVE — QS3D-CAD #34 / PR #35, exact `bf2a64b0…`, CI #92 green | QS3D-CAD consuming Platform `e029d4ba…` |
+
+### Cross-host source evidence snapshot
+
+- **BricsCAD:** review workspace/profile wave landed through PR #1668 at `main@03816d9179a1927afa1450f5c821d4a73d0ddc53`; licensed V25/V26 view/modeless/profile behavior remains `PENDING_LOCAL / DO_NOT_RETRY_REMOTE` until real-host evidence exists.
+- **AutoCAD:** issue #58 / stacked PR #59 is source-ready at `96cfa7b4e4b64b3e07f508034ac79d464731d261`. CI #204 / run `31872689952` passed Core smoke, AutoCAD 2021/net48, 2025-2026/net8 and 2027/net10 builds, parity/architecture/security/acceptance guards, packaging/provenance, Setup install/uninstall and signing-plumbing smoke. It is not merged and not native-qualified.
+- **Standalone:** issue #34 / PR #35 is source-ready at `bf2a64b069e56a15e99007b18f2cfb00620b1240`. QS3D-CAD CI #92 / run `31872446156` passed the exact Platform pin/shared validation, standalone parity smoke, desktop build and Windows installer smoke. It is not merged and does not prove native DWG/ODA fidelity.
+- Both new host lanes pin the same exact shared Platform candidate `e029d4ba0de6ffe80575f7aed96affa1db1b9b33`, preventing silent drift while PR #15 remains unintegrated.
 
 ## 6. TBQ-style digital BQ / estimating / cost management
 
@@ -159,6 +167,8 @@ Platform now defines a vendor-neutral coordination issue contract carrying:
 
 No Platform API exposes `ObjectId`, `DBObject`, `Solid3d`, Autodesk/Bricsys/ODA types.
 
+Host persistence must consume this shared contract. Do not add a second competing coordination-issue domain model in BricsCAD, AutoCAD or the standalone host merely because Platform PR #15 has not yet landed to `main`.
+
 ## 10. Cubicost-Manager-style workspace
 
 Split deliberately:
@@ -187,25 +197,31 @@ Wave A is **SOURCE_READY** on the #13 implementation branch. It is not `main`-in
 
 ### Wave B — BricsCAD review UX
 
-- integrate exact-clash transient highlight lane;
-- zoom-to-clash with robust WCS/DCS behavior;
-- modeless clash palette;
-- persist/restore shared coordination issues through BricsCAD project storage;
-- recognition profile editor/persistence bridge;
-- MEP rule editor/report wiring;
-- licensed V25 exact-SHA qualification.
+- [x] integrate exact-clash transient highlight source;
+- [x] zoom-to-selection with robust WCS/DCS source path;
+- [x] modeless MEP/clash review palette;
+- [ ] persist/restore shared coordination issues through BricsCAD project storage — intentionally waits for canonical shared Platform landing/published contract;
+- [x] recognition profile editor/persistence bridge;
+- [ ] complete MEP rule/report-to-BQ wiring;
+- [ ] licensed V25/V26 exact-SHA qualification for the integrated review/profile wave.
+
+The delivered BricsCAD source wave is integrated at `03816d9179a1927afa1450f5c821d4a73d0ddc53`; that is source integration evidence only, not native runtime qualification.
 
 ### Wave C — cross-host reuse
 
-- consume shared Platform contracts from `QS3D-AutoCAD`;
-- implement AutoCAD MEP takeoff/clash/Locate/exact-review parity;
-- expose the same host-neutral contracts in `QS3D-CAD` reference/standalone workflows;
-- retire duplicate host-neutral implementations only after golden parity proves behavioral equivalence.
+- [x] consume the exact shared Platform parity candidate from `QS3D-AutoCAD` (#58 / PR #59);
+- [x] implement AutoCAD MEP takeoff/clash/Locate/exact/zoom source parity and multi-target packaging; native licensed matrix remains pending;
+- [x] expose shared recognition/takeoff/clash/Locate/coordination-issue contracts in `QS3D-CAD` reference/standalone workflows (#34 / PR #35); native DWG/ODA fidelity remains pending;
+- [ ] add richer AutoCAD modeless profile/review UI if product UX requires BricsCAD-style parity;
+- [ ] add host persistence bridges for shared coordination issues only after the canonical Platform contract is integrated/published;
+- [ ] retire duplicate host-neutral implementations only after golden parity proves behavioral equivalence.
 
 ## 12. Definition of completion
 
 `IMPLEMENTED` means source and deterministic tests exist in the correct repository. It does **not** imply `NATIVE_PASS`.
 
 A BricsCAD/AutoCAD feature is only production-qualified when its exact integrated SHA is built and exercised in the licensed native host with evidence for selection, transactions, geometry, graphics, undo/cancellation, multi-document affinity and no unintended drawing/project mutation.
+
+A standalone/reference-host CI PASS proves the reference implementation only. It must not be promoted to native DWG/ODA fidelity without the corresponding licensed/native adapter evidence.
 
 This master plan is clean-room workflow parity. It is not authorization to copy proprietary Cubicost source code, private formats, branding or undisclosed implementation details.
