@@ -281,7 +281,8 @@ public sealed class CoordinationIssueCatalog
     public void Add(CoordinationIssue issue)
     {
         if (issue is null) throw new ArgumentNullException(nameof(issue));
-        if (!_issues.TryAdd(issue.IssueId, issue)) throw new InvalidOperationException("Duplicate coordination issue id: " + issue.IssueId + ".");
+        if (_issues.ContainsKey(issue.IssueId)) throw new InvalidOperationException("Duplicate coordination issue id: " + issue.IssueId + ".");
+        _issues.Add(issue.IssueId, issue);
     }
 
     public CoordinationIssue? Find(string issueId)
