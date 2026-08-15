@@ -16,7 +16,7 @@ No existing BricsCAD command should be switched to Platform merely because an eq
 | `QS3D.Core.Mep.MepElementKind` | `QS3D.Platform.Parity.MepElementKind` | map by explicit enum switch; never numeric cast across products |
 | `QS3D.Core.Mep.MepElement` | `QS3D.Platform.Parity.MepElement` | preserve stable ID, system, specification, region and SI metrics |
 | `QS3D.Core.Mep.MepQuantityService` | `QS3D.Platform.Parity.MepQuantityService` | golden compare grouping/count/L/A/V before adapter switch |
-| `QS3D.Core.Mep.MepRecognitionRule/Profile` | `QS3D.Platform.Parity.MepRecognitionRule/Profile` | preserve priority, Layer/Block scope and fail-closed ambiguity |
+| `QS3D.Core.Mep.MepRecognitionRule` + `QS3D.Core.Mep.MepRecognitionProfile` | `QS3D.Platform.Parity.MepRecognitionRule` + `QS3D.Platform.Parity.MepRecognitionProfile` | preserve priority, Layer/Block scope and fail-closed ambiguity |
 | `QS3D.Core.Coordination.AxisAlignedBox` | `QS3D.Platform.Parity.AxisAlignedBox` | SI metres only; native extents conversion remains adapter-owned |
 | `QS3D.Core.Coordination.CoordinationElement` | `QS3D.Platform.Parity.CoordinationElement` | map explicit discipline/category/system/region |
 | `QS3D.Core.Coordination.ClashDetectionService` | `QS3D.Platform.Parity.ClashDetectionService` | golden compare hard/clearance ordering and separation |
