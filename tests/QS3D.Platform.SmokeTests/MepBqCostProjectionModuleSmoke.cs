@@ -41,7 +41,10 @@ internal static class MepBqCostProjectionModuleSmoke
         Equal(4.25m, projected.Single(x => x.ItemCode == "BQ-TRAY").Quantity);
         Equal(2m, projected.Single(x => x.ItemCode == "BQ-EQUIP").Quantity);
         Require(projected.All(x => x.ItemCode != "BQ-PIPE-GENERIC"), "specific CHW mapping must outrank generic pipe mapping");
-        Equal(2, projected.Single(x => x.ItemCode == "BQ-PIPE-CHW").Sources.Count);
+        var pipeProjection = projected.Single(x => x.ItemCode == "BQ-PIPE-CHW");
+        Equal(1, pipeProjection.Sources.Count);
+        Equal(2, pipeProjection.Sources[0].ElementCount);
+        Equal(12m, pipeProjection.Sources[0].ContributedQuantity);
 
         var pipeGroup = groups.Single(x => x.Kind == MepElementKind.Pipe);
         var ambiguousProfile = new MepBqMappingProfile(new[]
