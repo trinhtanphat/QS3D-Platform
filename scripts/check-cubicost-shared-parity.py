@@ -7,8 +7,10 @@ FILES = {
     "mep": ROOT / "src/QS3D.Platform.Parity/MepCoordinationParity.cs",
     "cost": ROOT / "src/QS3D.Platform.Parity/CostLifecycleParity.cs",
     "review": ROOT / "src/QS3D.Platform.Parity/RecognitionReviewParity.cs",
+    "advanced": ROOT / "src/QS3D.Platform.Parity/AdvancedParityWorkflows.cs",
     "smoke": ROOT / "tests/QS3D.Platform.SmokeTests/CubicostSharedParitySmoke.cs",
     "plan": ROOT / "docs/CUBICOST-QS3D-FEATURE-MASTER-PLAN.md",
+    "migration": ROOT / "docs/CUBICOST-QS3D-MIGRATION-MAP.md",
 }
 errors = []
 
@@ -48,12 +50,21 @@ required = {
         "CoordinationIssueStatus",
         "CadReference?",
     ],
+    "advanced": [
+        "MepRecognitionProfileCatalog",
+        "SmartRateApplicationService",
+        "RateApplicationStatus.Ambiguous",
+        "TenderRevisionService",
+        "MultiRoundTenderEvaluationService",
+    ],
     "smoke": [
-        "Ambiguous",
+        "RecognitionCatalog",
         "MepAggregation",
         "ClashDetection",
         "RateBuildUpAndBenchmark",
+        "SmartRateApplication",
         "TenderAndProgress",
+        "TenderRevisionAndRounds",
         "TimePhasedCost",
         "IdentificationAndIssueReview",
     ],
@@ -65,6 +76,15 @@ required = {
         "FORMAT_SCOPE",
         "SERVICE_SCOPE",
         "LOCAL_ONLY",
+    ],
+    "migration": [
+        "compatibility-first",
+        "MepRecognitionProfile",
+        "ClashDetectionService",
+        "TenderEvaluationService",
+        "ProgressClaimService",
+        "QS3DMEPEXACTCLASH",
+        "Golden migration sequence",
     ],
 }
 
@@ -84,10 +104,23 @@ vendor_tokens = (
     "Solid3d",
     "PaletteSet",
 )
-for label in ("mep", "cost", "review"):
+for label in ("mep", "cost", "review", "advanced"):
     for token in vendor_tokens:
         if token in texts[label]:
             errors.append(f"{label}: vendor-specific token forbidden in Platform source: {token!r}")
+
+for label in ("mep", "cost", "review", "advanced"):
+    for token in (
+        "ArgumentNullException.ThrowIfNull",
+        "ArgumentException.ThrowIfNullOrEmpty",
+        "ArgumentException.ThrowIfNullOrWhiteSpace",
+        "double.IsFinite",
+        "Math.Clamp(",
+        ".TryAdd(",
+        "[^",
+    ):
+        if token in texts[label]:
+            errors.append(f"{label}: netstandard2.0-incompatible or disallowed token {token!r}")
 
 if "netstandard2.0" not in (ROOT / "src/QS3D.Platform.Parity/QS3D.Platform.Parity.csproj").read_text(encoding="utf-8"):
     errors.append("Parity project must remain netstandard2.0")
