@@ -130,9 +130,9 @@ public sealed class CoordinationIssueComment
 {
     public CoordinationIssueComment(string id, string author, string text, DateTime createdAtUtc)
     {
-        Id = Text.Require(id, nameof(id));
-        Author = Text.Require(author, nameof(author));
-        Text = Text.Require(text, nameof(text));
+        Id = global::QS3D.Platform.Parity.Text.Require(id, nameof(id));
+        Author = global::QS3D.Platform.Parity.Text.Require(author, nameof(author));
+        Text = global::QS3D.Platform.Parity.Text.Require(text, nameof(text));
         if (createdAtUtc.Kind != DateTimeKind.Utc) throw new ArgumentException("Comment timestamp must be UTC.", nameof(createdAtUtc));
         CreatedAtUtc = createdAtUtc;
     }
@@ -185,7 +185,7 @@ public sealed class CoordinationIssue
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = createdAtUtc;
         Status = CoordinationIssueStatus.Open;
-        Assignee = string.IsNullOrWhiteSpace(assignee) ? null : assignee.Trim();
+        Assignee = NormalizeOptionalText(assignee);
     }
 
     public string IssueId { get; }
@@ -210,7 +210,7 @@ public sealed class CoordinationIssue
     public void Assign(string? assignee, DateTime changedAtUtc)
     {
         ValidateMutationTime(changedAtUtc);
-        Assignee = string.IsNullOrWhiteSpace(assignee) ? null : assignee.Trim();
+        Assignee = NormalizeOptionalText(assignee);
         UpdatedAtUtc = changedAtUtc;
     }
 
@@ -263,6 +263,12 @@ public sealed class CoordinationIssue
             CoordinationIssueStatus.Closed => next == CoordinationIssueStatus.Open,
             _ => false
         };
+    }
+
+    private static string? NormalizeOptionalText(string? value)
+    {
+        var normalized = value?.Trim();
+        return string.IsNullOrEmpty(normalized) ? null : normalized;
     }
 
     private void ValidateMutationTime(DateTime timestampUtc)
