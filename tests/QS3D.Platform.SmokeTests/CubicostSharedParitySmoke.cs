@@ -6,11 +6,14 @@ internal static class CubicostSharedParitySmoke
     internal static void Run()
     {
         Recognition();
+        RecognitionCatalog();
         MepAggregation();
         ClashDetection();
         RateBuildUpAndBenchmark();
+        SmartRateApplication();
         BqReferencesAndAdjustment();
         TenderAndProgress();
+        TenderRevisionAndRounds();
         TimePhasedCost();
         IdentificationAndIssueReview();
     }
@@ -31,6 +34,15 @@ internal static class CubicostSharedParitySmoke
         var ambiguous = custom.Recognize("service-main", null);
         Equal(MepRecognitionStatus.Ambiguous, ambiguous.Status);
         Require(!ambiguous.MepKind.HasValue, "ambiguous recognition must fail closed");
+    }
+
+    private static void RecognitionCatalog()
+    {
+        var catalog = new MepRecognitionProfileCatalog();
+        catalog.Add(new NamedMepRecognitionProfile("default", "Default", MepRecognitionProfiles.CreateDefault(), true));
+        Equal("default", catalog.Default!.ProfileId);
+        Throws<InvalidOperationException>(() => catalog.Add(new NamedMepRecognitionProfile("other", "Other", MepRecognitionProfiles.CreateDefault(), true)));
+        Throws<InvalidOperationException>(() => catalog.Add(new NamedMepRecognitionProfile("DEFAULT", "Duplicate", MepRecognitionProfiles.CreateDefault())));
     }
 
     private static void MepAggregation()
@@ -83,6 +95,28 @@ internal static class CubicostSharedParitySmoke
         Equal(10m, benchmark.DeviationFromAveragePercent!.Value);
     }
 
+    private static void SmartRateApplication()
+    {
+        var service = new SmartRateApplicationService();
+        var request = new RateApplicationRequest("A", "m3", "APT|HN");
+        var matched = service.Match(request, new[]
+        {
+            new RateApplicationCandidate("A", "m3", "APT|HN", 100m, "history", 10),
+            new RateApplicationCandidate("A", "m3", "APT|HN", 110m, "preferred", 20)
+        });
+        Equal(RateApplicationStatus.Matched, matched.Status);
+        Equal(110m, matched.UnitRate!.Value);
+        Equal("preferred", matched.SourceId!);
+
+        var ambiguous = service.Match(request, new[]
+        {
+            new RateApplicationCandidate("A", "m3", "APT|HN", 100m, "one", 20),
+            new RateApplicationCandidate("A", "m3", "APT|HN", 110m, "two", 20)
+        });
+        Equal(RateApplicationStatus.Ambiguous, ambiguous.Status);
+        Require(!ambiguous.UnitRate.HasValue, "ambiguous smart rate must fail closed");
+    }
+
     private static void BqReferencesAndAdjustment()
     {
         var catalog = new BqLibraryCatalog(new[] { new BqLibraryItem("A", "Concrete", "m3") });
@@ -114,11 +148,7 @@ internal static class CubicostSharedParitySmoke
     private static void TenderAndProgress()
     {
         var tender = new TenderEvaluationService().Evaluate(
-            new[]
-            {
-                new TenderRequirement("A", "Concrete", "m3", 2m),
-                new TenderRequirement("B", "Rebar", "kg", 1m)
-            },
+            Requirements(),
             new[]
             {
                 new TenderBid("B1", "One", "VND", new[] { new TenderQuoteLine("A", 10m), new TenderQuoteLine("B", 20m) }),
@@ -136,6 +166,36 @@ internal static class CubicostSharedParitySmoke
         Equal(2m, claim.Lines[0].CertifiedThisPeriodQuantity);
         Equal(2m, claim.Lines[0].RejectedQuantity);
         Equal(180m, claim.NetCertifiedThisPeriod);
+    }
+
+    private static void TenderRevisionAndRounds()
+    {
+        var changes = TenderRevisionService.Compare(
+            new[]
+            {
+                new TenderRevisionLine("A", "Concrete", "m3", 2m),
+                new TenderRevisionLine("B", "Rebar", "kg", 10m)
+            },
+            new[]
+            {
+                new TenderRevisionLine("A", "Concrete changed", "m3", 2m),
+                new TenderRevisionLine("C", "Formwork", "m2", 20m)
+            });
+        Equal(3, changes.Count);
+        Equal(TenderRevisionChangeKind.Changed, changes.Single(x => x.ItemCode == "A").Kind);
+        Equal(TenderRevisionChangeKind.Removed, changes.Single(x => x.ItemCode == "B").Kind);
+        Equal(TenderRevisionChangeKind.Added, changes.Single(x => x.ItemCode == "C").Kind);
+
+        var first = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var second = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var rounds = new MultiRoundTenderEvaluationService().Evaluate(Requirements(), new[]
+        {
+            new TenderRound("R2", second, new[] { new TenderBid("B1", "One", "VND", new[] { new TenderQuoteLine("A", 9m), new TenderQuoteLine("B", 18m) }) }),
+            new TenderRound("R1", first, new[] { new TenderBid("B1", "One", "VND", new[] { new TenderQuoteLine("A", 10m), new TenderQuoteLine("B", 20m) }) })
+        });
+        Equal("R1", rounds[0].RoundId);
+        Equal("R2", rounds[1].RoundId);
+        Equal(1, rounds[1].Results[0].Rank);
     }
 
     private static void TimePhasedCost()
@@ -192,6 +252,12 @@ internal static class CubicostSharedParitySmoke
         Equal(1, issue.Comments.Count);
         Throws<InvalidOperationException>(() => issue.AddComment(new CoordinationIssueComment("CM1", "tester", "duplicate", created.AddMinutes(4))));
     }
+
+    private static TenderRequirement[] Requirements() => new[]
+    {
+        new TenderRequirement("A", "Concrete", "m3", 2m),
+        new TenderRequirement("B", "Rebar", "kg", 1m)
+    };
 
     private static void Require(bool condition, string message)
     {
