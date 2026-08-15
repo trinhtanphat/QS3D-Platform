@@ -1,0 +1,214 @@
+# QS3D Cubicost-style feature master plan
+
+Updated: 2026-08-15 (UTC+7)  
+Tracking: #13  
+Architecture authority: `QS3D-Platform` is vendor-neutral; native CAD behavior stays in the consuming host repositories.
+
+## 1. Repository ownership decision
+
+The full Cubicost-style feature family does **not** belong entirely in `QS3D-BricsCAD`.
+
+| Concern | Canonical repository | Rule |
+|---|---|---|
+| Shared semantic BIM/QS domain, MEP classification, quantity math, clash contracts, cost/tender/progress logic, parity fixtures | `QS3D-Platform` | no BricsCAD/AutoCAD/ODA/UI vendor dependency |
+| BricsCAD V25/V26 commands, selection, transactions, `Solid3d`, highlight/zoom/palette, DWG-native qualification | `QS3D-BricsCAD` | adapter only; consume shared Platform contracts over time |
+| AutoCAD 2021/2025-2027 commands, palettes/ribbon, Autodesk geometry/runtime qualification | `QS3D-AutoCAD` | Autodesk adapter only; same shared contracts |
+| Standalone Windows CAD/BIM/QS workspace and future licensed native DWG/rendering adapter | `QS3D-CAD` | desktop host consuming Platform |
+| Product-family shared contracts are **not** duplicated into host repositories once migrated | `QS3D-Platform` | compatibility adapters may remain temporarily during migration |
+
+`QS3D-BricsCAD/src/QS3D.Core` currently contains significant mature functionality. Migration must therefore be incremental and compatibility-first: shared contracts move to Platform, adapters are switched in small lanes, then duplicate host-neutral code can be retired only after parity tests prove equivalent behavior.
+
+## 2. Status vocabulary
+
+- `DONE_SHARED` — source-complete host-neutral contract exists in Platform.
+- `DONE_BRX` — BricsCAD-native implementation exists.
+- `DONE_QS3D_CORE` — currently implemented in legacy host-neutral `QS3D-BricsCAD/src/QS3D.Core`; candidate for Platform convergence.
+- `PARTIAL` — useful foundation exists but advertised workflow is incomplete.
+- `NEXT_SHARED` — belongs in Platform and is planned/implemented by #13.
+- `NEXT_BRX` — belongs in BricsCAD adapter/UI.
+- `NEXT_ACAD` — AutoCAD adapter parity.
+- `NEXT_DESKTOP` — standalone CAD parity.
+- `FORMAT_SCOPE` — external-format/OCR/import lane requiring separate approval/evidence.
+- `SERVICE_SCOPE` — server/team/service capability, outside vendor-neutral CAD libraries.
+- `LOCAL_ONLY` — source may be remote-safe, but native host truth requires real licensed runtime evidence.
+
+## 3. TAS-style architecture/structure takeoff
+
+| Capability | Current QS3D status | Canonical direction |
+|---|---|---|
+| Semantic walls/columns/beams/slabs/openings/rooms | DONE_QS3D_CORE + Platform domain foundations | converge semantic identity into Platform |
+| 3D quantity takeoff | DONE_QS3D_CORE | shared quantity contracts in Platform; host extraction per adapter |
+| DWG recognition-assisted modelling | PARTIAL | recognition policy shared; native entity extraction in BricsCAD/AutoCAD |
+| PDF recognition-assisted modelling | PARTIAL | FORMAT_SCOPE for OCR/text/geometry extraction |
+| IFC import/interchange | PARTIAL | shared interchange contract; host/service lane for richer import |
+| RVT/Revit import | FORMAT_SCOPE | separate lawful native/import lane |
+| Localized measurement rules | DONE_QS3D_CORE/PARTIAL | shared rule packs/presets in Platform |
+| one-click quantity calculation | DONE_QS3D_CORE | expose in each host UI |
+| automatic deductions/opening relationships | DONE_QS3D_CORE | keep authoritative semantic/regeneration engine |
+| recalculation after model changes | DONE_QS3D_CORE | converge dirty/dependency contracts |
+| quantity trace to source objects | DONE_QS3D_CORE | shared trace identity + native Locate |
+| calculation-expression explanation | DONE_QS3D_CORE | shared explanation model + host UI |
+| 3D deduction review | PARTIAL | shared review contract; host graphics UI |
+| reports / custom templates | DONE_QS3D_CORE/PARTIAL | shared projection contracts + host/export surfaces |
+| custom classification / filtering | DONE_QS3D_CORE/PARTIAL | shared query/classification contracts |
+| zones / segments / floors | DONE_QS3D_CORE + Platform domain | canonical shared IDs |
+| revision compare / quantity change review | DONE_QS3D_CORE | shared diff contracts, native visualization per host |
+| steel / earthwork / finish / precast workflows | PARTIAL | dedicated shared domain modules, adapter extraction |
+
+## 4. TRB-style rebar takeoff
+
+QS3D-BricsCAD already has broad rebar functionality: beam longitudinal/stirrups, columns, walls/slabs, mesh/layout, schedules, BBS, weight, stock demand, cutting optimization, procurement and health checks. The correct architecture is:
+
+- rebar calculation/planning/identity/report contracts -> Platform convergence;
+- BricsCAD object creation/edit/preview/highlight -> `QS3D-BricsCAD`;
+- AutoCAD native equivalent -> `QS3D-AutoCAD`;
+- country-code BS/ACI/Eurocode preset packs -> shared Platform rule packs;
+- PDF/JPG intelligent recognition -> FORMAT_SCOPE;
+- real-host interactive rebar review -> LOCAL_ONLY per adapter.
+
+## 5. TME/TMEC-style MEP quantity and coordination
+
+| Capability | Status | Ownership |
+|---|---|---|
+| MEP element kinds and semantic grouping | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| system/specification/region classification | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| configurable Layer/BlockName recognition profile | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| fail-closed unmatched/ambiguous recognition | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| deterministic count/length/area/volume aggregation | DONE_QS3D_CORE -> NEXT_SHARED | Platform |
+| native BricsCAD selected-entity takeoff `QS3DMEPTAKEOFF` | DONE_BRX | BricsCAD |
+| broad-phase hard/clearance clash `QS3DMEPCLASH` | DONE_BRX + shared Core | Platform math + BricsCAD extraction |
+| clash Locate/select `QS3DMEPCLASHLOCATE` | DONE_BRX | BricsCAD |
+| exact `Solid3d.CheckInterference` hard clash `QS3DMEPEXACTCLASH` | DONE_BRX / LOCAL_ONLY | BricsCAD |
+| transient exact-clash highlight review | source-ready PR lane / LOCAL_ONLY | BricsCAD |
+| zoom/camera to reviewed clash | NEXT_BRX / LOCAL_ONLY | BricsCAD |
+| modeless clash review palette | NEXT_BRX | BricsCAD |
+| persistent clash issues/status/assignee/comments | NEXT_SHARED + adapter persistence/UI | Platform contract + hosts |
+| recognition-profile persistence/editor | NEXT_SHARED + NEXT_BRX/NEXT_ACAD | Platform profile schema + host UI |
+| MEP rule authoring (duct/pipe/cable/fittings/equipment) | PARTIAL | Platform quantity/rule engine |
+| MEP reports to BQ/cost | PARTIAL | Platform projection + host export |
+| AutoCAD MEP adapter parity | NEXT_ACAD | AutoCAD |
+| standalone MEP reference workflows | NEXT_DESKTOP | QS3D-CAD |
+
+## 6. TBQ-style digital BQ / estimating / cost management
+
+Shared clean-room scope:
+
+1. BQ/item library with deterministic identity and duplicate rejection.
+2. resource/rate build-up (labour/material/plant/subcontract/other components).
+3. linked unit-rate analysis with overhead/profit.
+4. historical BQ/rate catalog.
+5. multi-dimensional historical benchmark statistics.
+6. rate-reference marks and reverse BQ/rate lookup.
+7. build-up analysis and applied-rate traceability.
+8. adjust-cost by delta/ratio/target total.
+9. trade analysis and CFA/cost-per-area projection.
+10. smart/batch rate application foundation.
+11. tender BOQ requirements and bid lines.
+12. completeness checking and missing-item evidence.
+13. comparable total and deterministic ranking of complete bids.
+14. reasonability/benchmark checks as policy extensions.
+15. tender revision/addendum comparison contracts.
+16. multi-round tender evaluation model.
+17. progress contract items and claims.
+18. certified quantity cap, overclaim rejection, retention and net certification.
+19. quantity/value traceability from progress back to BQ/model identity.
+20. time-phased quantity/cost baseline and actuals for 4D/5D monitoring.
+
+Existing `QS3D-BricsCAD/src/QS3D.Core` already implements much of items 1-9 and 11-18. #13 establishes the equivalent shared Platform contract as the long-term canonical surface.
+
+Native BQ tables, XLSX/CSV/report rendering and palette interaction stay in the consuming product repository. Tender-PDF OCR/table recognition is FORMAT_SCOPE. Organization-wide shared libraries, multi-user supplier submission and online permissions are SERVICE_SCOPE.
+
+## 7. 4D/5D lifecycle
+
+Shared Platform responsibilities:
+
+- semantic activity/work-package IDs;
+- quantity/cost assignment to time buckets;
+- baseline vs actual/progress value projection;
+- deterministic earned/progress quantities and cost curves;
+- revision impact snapshots.
+
+Host responsibilities:
+
+- native object selection/visualization;
+- model highlighting by time/progress state;
+- charts/palettes and export wiring.
+
+Server/service responsibilities:
+
+- multi-user collaboration, remote comments, organization RBAC, supplier tender portal, shared cloud libraries, notifications and cross-device synchronization.
+
+## 8. Deep CAD-identification workflow parity
+
+Vendor-neutral configuration belongs in Platform:
+
+- import-hatch filtering policy;
+- select-by-color classification rules;
+- beam size read mode (`Width×Height` vs `Height×Width`);
+- beam end-extension policy/tolerance;
+- recognition confidence/result state;
+- fail-closed ambiguity;
+- PDF text-recognition/restore **capability contract only**.
+
+Actual DWG/PDF/JPG parsing and native entity mutation are adapter/FORMAT_SCOPE work.
+
+## 9. Coordination/review architecture
+
+Shared Platform issue contract should carry only stable semantic/native references and review data:
+
+- issue ID/type/severity/status;
+- left/right semantic IDs and stable CAD references;
+- discipline/category/system/region context;
+- hard/clearance/exact evidence kind;
+- measured separation/overlap when available;
+- title/description/assignee/comment history timestamps;
+- deterministic state transition validation.
+
+No Platform API may expose `ObjectId`, `DBObject`, `Solid3d`, Autodesk/Bricsys/ODA types.
+
+## 10. Cubicost-Manager-style workspace
+
+Split deliberately:
+
+- recent projects, local project discovery, learning/support links, update UI, product launcher -> product shell/desktop scope;
+- package/update/signing policy -> each distributable repository;
+- shared module compatibility/version contracts -> Platform;
+- license portfolio/account/service state -> service/product-shell scope, not CAD domain.
+
+## 11. Immediate implementation order
+
+### Wave A — shared parity baseline (#13)
+
+- [x] publish architecture/feature master plan;
+- [ ] shared MEP recognition + aggregation;
+- [ ] shared clash envelope contract;
+- [ ] shared BQ/rate/benchmark/tender/progress contracts;
+- [ ] shared time-phased 4D/5D cost projection;
+- [ ] deterministic smoke coverage;
+- [ ] vendor-neutral source guard;
+- [ ] migration map from BricsCAD Core to Platform.
+
+### Wave B — BricsCAD review UX
+
+- integrate exact-clash transient highlight lane;
+- zoom-to-clash with robust WCS/DCS behavior;
+- modeless clash palette;
+- persisted clash review issues;
+- recognition profile editor/persistence;
+- MEP rule editor/report wiring;
+- licensed V25 exact-SHA qualification.
+
+### Wave C — cross-host reuse
+
+- consume shared Platform contracts from `QS3D-AutoCAD`;
+- implement AutoCAD MEP takeoff/clash/Locate/exact-review parity;
+- expose the same host-neutral contracts in `QS3D-CAD` reference/standalone workflows;
+- retire duplicate host-neutral implementations only after golden parity proves behavioral equivalence.
+
+## 12. Definition of completion
+
+`IMPLEMENTED` means source and deterministic tests exist in the correct repository. It does **not** imply `NATIVE_PASS`.
+
+A BricsCAD/AutoCAD feature is only production-qualified when its exact integrated SHA is built and exercised in the licensed native host with evidence for selection, transactions, geometry, graphics, undo/cancellation, multi-document affinity and no unintended drawing/project mutation.
+
+This master plan is clean-room workflow parity. It is not authorization to copy proprietary Cubicost source code, private formats, branding or undisclosed implementation details.
