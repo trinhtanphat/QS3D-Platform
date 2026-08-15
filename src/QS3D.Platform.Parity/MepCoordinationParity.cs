@@ -54,7 +54,7 @@ public sealed class MepRecognitionRule
         if (!Enum.IsDefined(typeof(MepDiscipline), discipline)) throw new ArgumentOutOfRangeException(nameof(discipline));
         Discipline = discipline;
         Category = Text.Require(category, nameof(category));
-        if (source == MepRecognitionSource.None || (source & ~MepRecognitionSource.LayerOrBlockName) != 0)
+        if (source == MepRecognitionSource.None || (source & ~MepRecognitionSource.LayerOrBlockName) != MepRecognitionSource.None)
             throw new ArgumentOutOfRangeException(nameof(source));
         Source = source;
         if (discipline == MepDiscipline.Mep)
@@ -67,7 +67,6 @@ public sealed class MepRecognitionRule
             throw new ArgumentException("Only MEP recognition rules may define a MEP kind.", nameof(mepKind));
         }
         MepKind = mepKind;
-
         if (tokens is null) throw new ArgumentNullException(nameof(tokens));
         var normalized = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -106,12 +105,7 @@ public sealed class MepRecognitionRule
 
 public sealed class MepRecognitionResult
 {
-    internal MepRecognitionResult(
-        MepRecognitionStatus status,
-        MepDiscipline? discipline,
-        string? category,
-        MepElementKind? mepKind,
-        IReadOnlyList<string> matchedRuleIds)
+    internal MepRecognitionResult(MepRecognitionStatus status, MepDiscipline? discipline, string? category, MepElementKind? mepKind, IReadOnlyList<string> matchedRuleIds)
     {
         Status = status;
         Discipline = discipline;
@@ -171,29 +165,17 @@ public sealed class MepRecognitionProfile
             }
             top.Add(rule);
         }
-
-        if (top.Count == 0)
-            return new MepRecognitionResult(MepRecognitionStatus.Unmatched, null, null, null, Array.Empty<string>());
-
+        if (top.Count == 0) return new MepRecognitionResult(MepRecognitionStatus.Unmatched, null, null, null, Array.Empty<string>());
         var first = top[0];
-        var ambiguous = false;
-        for (var i = 1; i < top.Count; i++)
-        {
-            var current = top[i];
-            if (current.Discipline != first.Discipline ||
-                !StringComparer.OrdinalIgnoreCase.Equals(current.Category, first.Category) ||
-                current.MepKind != first.MepKind)
-            {
-                ambiguous = true;
-                break;
-            }
-        }
-
+        var ambiguous = top.Skip(1).Any(current =>
+            current.Discipline != first.Discipline ||
+            !StringComparer.OrdinalIgnoreCase.Equals(current.Category, first.Category) ||
+            current.MepKind != first.MepKind);
         var ids = new string[top.Count];
         for (var i = 0; i < top.Count; i++) ids[i] = top[i].Id;
-        if (ambiguous)
-            return new MepRecognitionResult(MepRecognitionStatus.Ambiguous, null, null, null, ids);
-        return new MepRecognitionResult(MepRecognitionStatus.Matched, first.Discipline, first.Category, first.MepKind, ids);
+        return ambiguous
+            ? new MepRecognitionResult(MepRecognitionStatus.Ambiguous, null, null, null, ids)
+            : new MepRecognitionResult(MepRecognitionStatus.Matched, first.Discipline, first.Category, first.MepKind, ids);
     }
 }
 
@@ -230,16 +212,7 @@ public static class MepRecognitionProfiles
 
 public sealed class MepElement
 {
-    public MepElement(
-        string id,
-        MepElementKind kind,
-        string system,
-        string specification,
-        string region,
-        int count = 1,
-        double lengthM = 0,
-        double areaM2 = 0,
-        double volumeM3 = 0)
+    public MepElement(string id, MepElementKind kind, string system, string specification, string region, int count = 1, double lengthM = 0, double areaM2 = 0, double volumeM3 = 0)
     {
         Id = Text.Require(id, nameof(id));
         if (!Enum.IsDefined(typeof(MepElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
@@ -310,9 +283,7 @@ public sealed class MepQuantityService
             }
             group.Add(element);
         }
-
-        var result = new List<MepQuantityGroup>(groups.Count);
-        foreach (var group in groups.Values) result.Add(group.ToImmutable());
+        var result = groups.Values.Select(static group => group.ToImmutable()).ToList();
         result.Sort(static (left, right) =>
         {
             var compare = StringComparer.OrdinalIgnoreCase.Compare(left.Region, right.Region);
@@ -442,8 +413,7 @@ public sealed class ClashDetectionService
             if (!ids.Add(element.ElementId)) throw new ArgumentException("Duplicate coordination element id: " + element.ElementId + ".", nameof(elements));
             list.Add(element);
         }
-        list.Sort(static (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.ElementId, b.ElementId));
-
+        list.Sort(static (left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.ElementId, right.ElementId));
         var results = new List<ClashResult>();
         for (var i = 0; i < list.Count; i++)
         {
@@ -490,8 +460,8 @@ internal static class Text
 {
     internal static string Require(string? value, string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Text value is required.", parameterName);
-        var trimmed = value.Trim();
+        var trimmed = (value ?? string.Empty).Trim();
+        if (trimmed.Length == 0) throw new ArgumentException("Text value is required.", parameterName);
         for (var i = 0; i < trimmed.Length; i++)
             if (char.IsControl(trimmed[i])) throw new ArgumentException("Text value must not contain control characters.", parameterName);
         return trimmed;
