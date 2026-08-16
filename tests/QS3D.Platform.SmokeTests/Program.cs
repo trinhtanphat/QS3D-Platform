@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("quantity accumulation", QuantityAccumulation),
     ("Cubicost-style shared parity", CubicostSharedParitySmoke.Run),
     ("TBQ 360-degree price/reference check", TbqPriceReferenceParitySmoke.Run),
+    ("TBQ element-code cost analysis", TbqElementAnalysisParitySmoke.Run),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("transactional layer ownership", TransactionalLayerOwnership),
     ("stale transaction fails closed", StaleTransactionFailsClosed),
