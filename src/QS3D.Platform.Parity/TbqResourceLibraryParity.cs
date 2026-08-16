@@ -37,8 +37,9 @@ public sealed class TbqResourceLibrary
         foreach (var rate in projectRates)
         {
             if (rate is null) throw new ArgumentException("Resource Library project payload contains a null rate.", nameof(projectRates));
-            if (!_rateById.TryAdd(rate.Id, rate))
+            if (_rateById.ContainsKey(rate.Id))
                 throw new ArgumentException("Duplicate Resource Library rate id: " + rate.Id + ".", nameof(projectRates));
+            _rateById.Add(rate.Id, rate);
         }
 
         _rates = new ReadOnlyCollection<CostRateBuildUp>(
