@@ -6,6 +6,7 @@ internal static class TbqElementAnalysisParitySmoke
     {
         AggregatesByElementAndArea();
         FiltersCurrentNodeDeterministically();
+        LargeShareDoesNotOverflow();
         ValidationFailsClosed();
     }
 
@@ -53,6 +54,18 @@ internal static class TbqElementAnalysisParitySmoke
         Equal("A", result.Rows[0].ElementCode);
         Equal(40m, result.Rows[0].Cost);
         Require(!result.Rows[0].CostPerM2.HasValue, "zero analysis area must not invent row cost/m2");
+    }
+
+    private static void LargeShareDoesNotOverflow()
+    {
+        var result = ElementCostAnalysisService.Analyze(new[]
+        {
+            new ElementCostLine("MAX", "Structure", decimal.MaxValue)
+        }, 0m);
+
+        Equal(decimal.MaxValue, result.TotalCost);
+        Equal(1, result.Rows.Count);
+        Equal(100m, result.Rows[0].SharePercent);
     }
 
     private static void ValidationFailsClosed()
