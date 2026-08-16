@@ -28,7 +28,7 @@ public sealed class ElementCostSummary
     {
         ElementCode = elementCode;
         Cost = cost;
-        SharePercent = totalCost == 0m ? 0m : checked(cost / totalCost * 100m);
+        SharePercent = CalculateSharePercent(cost, totalCost);
         CostPerM2 = analysisAreaM2 == 0m ? null : cost / analysisAreaM2;
         SourceLineCount = sourceLineCount;
     }
@@ -38,6 +38,19 @@ public sealed class ElementCostSummary
     public decimal SharePercent { get; }
     public decimal? CostPerM2 { get; }
     public int SourceLineCount { get; }
+
+    private static decimal CalculateSharePercent(decimal cost, decimal totalCost)
+    {
+        if (totalCost == 0m) return 0m;
+        try
+        {
+            return checked(cost * 100m / totalCost);
+        }
+        catch (OverflowException)
+        {
+            return checked(cost / totalCost * 100m);
+        }
+    }
 }
 
 public sealed class ElementCostAnalysisResult
