@@ -20,6 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("TBQ Build-up Analysis", TbqBuildUpAnalysisParitySmoke.Run),
     ("TBQ Resource Library batch import", TbqResourceLibraryParitySmoke.Run),
     ("TBQ Analysis by Trade", TbqTradeAnalysisParitySmoke.Run),
+    ("TBQ BQ Library hierarchy", TbqBqLibraryParitySmoke.Run),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("transactional layer ownership", TransactionalLayerOwnership),
     ("stale transaction fails closed", StaleTransactionFailsClosed),
