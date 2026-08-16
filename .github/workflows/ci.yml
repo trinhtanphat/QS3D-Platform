@@ -2,20 +2,63 @@ name: QS3D Platform CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "agent/**"
+      - "recovery/**"
+      - "integration/**"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".editorconfig"
+      - "LICENSE*"
+      - "NOTICE*"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE*"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
   pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".editorconfig"
+      - "LICENSE*"
+      - "NOTICE*"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE*"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout exact task SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact checkout SHA
+        shell: bash
+        run: |
+          expected='${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          test "${actual,,}" = "${expected,,}" || { echo "Checkout SHA mismatch: expected $expected, actual $actual"; exit 1; }
+          echo "Exact source SHA: $actual"
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
