@@ -284,7 +284,9 @@ public static class CostAdjustmentService
     {
         if (originalTotal < 0m) throw new ArgumentOutOfRangeException(nameof(originalTotal));
         if (targetTotal < 0m) throw new ArgumentOutOfRangeException(nameof(targetTotal));
-        var ratio = originalTotal == 0m ? (targetTotal == 0m ? 0m : 100m) : (targetTotal - originalTotal) / originalTotal * 100m;
+        if (originalTotal == 0m && targetTotal > 0m)
+            throw new InvalidOperationException("A positive target total cannot be represented by a finite adjustment ratio when the original total is zero.");
+        var ratio = originalTotal == 0m ? 0m : (targetTotal - originalTotal) / originalTotal * 100m;
         return new CostAdjustmentResult(originalTotal, targetTotal, targetTotal - originalTotal, ratio);
     }
 }
