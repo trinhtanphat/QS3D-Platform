@@ -93,6 +93,15 @@ internal static class CubicostSharedParitySmoke
         Equal(2, benchmark.SampleCount);
         Equal(11m, benchmark.AverageUnitCost);
         Equal(10m, benchmark.DeviationFromAveragePercent!.Value);
+
+        var largeCatalog = new HistoricalCostCatalog(new[]
+        {
+            new HistoricalCostRecord("MAX1", "MAX", "APT|HN", 1m, decimal.MaxValue, "VND", new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            new HistoricalCostRecord("MAX2", "MAX", "APT|HN", 1m, decimal.MaxValue, "VND", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+        });
+        var largeBenchmark = new CostBenchmarkService().Analyze(largeCatalog, "MAX", "APT|HN", "VND");
+        Equal(decimal.MaxValue, largeBenchmark.AverageUnitCost);
+        Equal(decimal.MaxValue, largeBenchmark.MedianUnitCost);
     }
 
     private static void SmartRateApplication()
