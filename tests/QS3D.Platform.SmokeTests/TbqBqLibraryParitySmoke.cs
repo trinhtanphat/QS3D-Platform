@@ -56,6 +56,9 @@ internal static class TbqBqLibraryParitySmoke
         Throws<InvalidOperationException>(() => library.AddContainer("SUB", BqLibraryNodeKind.Subcategory, "Missing parent", "MISSING"));
         Throws<InvalidOperationException>(() => library.AddContainer("CHILD", BqLibraryNodeKind.Heading, "Under bill", "BILL-1"));
         Throws<InvalidOperationException>(() => library.AddBill("BILL-2", Bill("b-1", "Duplicate bill"), "CAT"));
+        Throws<ArgumentException>(() => library.AddContainer("BLANK-PARENT", BqLibraryNodeKind.Category, "Blank parent", " "));
+        Throws<ArgumentException>(() => library.AddBill("BLANK-BILL", Bill("B-9", "Blank parent"), " "));
+        Throws<ArgumentException>(() => library.ChildrenOf(" "));
         Throws<ArgumentException>(() => library.ImportFromProject(
             new[] { Bill("B-2", "A"), Bill("b-2", "B") },
             "CAT"));
