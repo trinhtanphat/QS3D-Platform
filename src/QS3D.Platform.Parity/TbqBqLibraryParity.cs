@@ -116,8 +116,8 @@ public sealed class TbqBqLibraryWorkspace
     public IReadOnlyList<BqLibraryNode> ChildrenOf(string? parentNodeId = null)
     {
         string? canonicalParent = null;
-        if (!string.IsNullOrWhiteSpace(parentNodeId))
-            canonicalParent = ResolveNode(parentNodeId!).NodeId;
+        if (parentNodeId is not null)
+            canonicalParent = ResolveNode(Text.Require(parentNodeId, nameof(parentNodeId))).NodeId;
         return new ReadOnlyCollection<BqLibraryNode>(_nodes
             .Where(node => StringComparer.OrdinalIgnoreCase.Equals(node.ParentNodeId, canonicalParent))
             .OrderBy(static node => node.NodeId, StringComparer.OrdinalIgnoreCase)
@@ -133,8 +133,8 @@ public sealed class TbqBqLibraryWorkspace
 
     private BqLibraryNode? ResolveContainer(string? nodeId)
     {
-        if (string.IsNullOrWhiteSpace(nodeId)) return null;
-        var node = ResolveNode(nodeId);
+        if (nodeId is null) return null;
+        var node = ResolveNode(Text.Require(nodeId, nameof(nodeId)));
         if (node.Kind == BqLibraryNodeKind.Bill)
             throw new InvalidOperationException("BQ Library bill nodes cannot contain child nodes: " + node.NodeId + ".");
         return node;
