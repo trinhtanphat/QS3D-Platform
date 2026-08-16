@@ -148,12 +148,33 @@ public sealed class CostBenchmarkService
             .OrderBy(static x => x)
             .ToArray();
         if (values.Length == 0) throw new InvalidOperationException("No comparable historical samples were found.");
-        var average = 0m;
-        for (var index = 0; index < values.Length; index++)
-            average += (values[index] - average) / (index + 1m);
-        var median = values.Length % 2 == 1
-            ? values[values.Length / 2]
-            : values[values.Length / 2 - 1] + (values[values.Length / 2] - values[values.Length / 2 - 1]) / 2m;
+
+        decimal average;
+        try
+        {
+            var sum = values.Aggregate(0m, static (total, value) => checked(total + value));
+            average = sum / values.Length;
+        }
+        catch (OverflowException)
+        {
+            average = 0m;
+            for (var index = 0; index < values.Length; index++)
+                average += (values[index] - average) / (index + 1m);
+        }
+
+        decimal median;
+        if (values.Length % 2 == 1)
+        {
+            median = values[values.Length / 2];
+        }
+        else
+        {
+            var low = values[values.Length / 2 - 1];
+            var high = values[values.Length / 2];
+            try { median = checked(low + high) / 2m; }
+            catch (OverflowException) { median = low + (high - low) / 2m; }
+        }
+
         decimal? deviation = null;
         if (candidateUnitCost.HasValue)
             deviation = average == 0m ? (candidateUnitCost.Value == 0m ? 0m : null) : (candidateUnitCost.Value - average) / average * 100m;
