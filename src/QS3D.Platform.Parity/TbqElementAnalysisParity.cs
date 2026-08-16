@@ -28,7 +28,7 @@ public sealed class ElementCostSummary
     {
         ElementCode = elementCode;
         Cost = cost;
-        SharePercent = totalCost == 0m ? 0m : checked(cost * 100m / totalCost);
+        SharePercent = totalCost == 0m ? 0m : checked(cost / totalCost * 100m);
         CostPerM2 = analysisAreaM2 == 0m ? null : cost / analysisAreaM2;
         SourceLineCount = sourceLineCount;
     }
