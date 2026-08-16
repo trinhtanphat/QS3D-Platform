@@ -12,6 +12,7 @@ python3 scripts/check-cubicost-shared-parity.py
 python3 scripts/check-cubicost-tbq-360-price-check.py
 python3 scripts/check-cubicost-tbq-element-analysis.py
 python3 scripts/check-cubicost-tbq-build-up-analysis.py
+python3 scripts/check-cubicost-tbq-resource-library.py
 python3 scripts/check-families.py
 dotnet build QS3D.Platform.sln -c Release
 dotnet run --project tests/QS3D.Platform.SmokeTests/QS3D.Platform.SmokeTests.csproj -c Release --no-build
