@@ -298,7 +298,10 @@ public static class CostAdjustmentService
     {
         if (originalTotal < 0m) throw new ArgumentOutOfRangeException(nameof(originalTotal));
         if (ratioPercent < -100m) throw new ArgumentOutOfRangeException(nameof(ratioPercent));
-        var adjusted = checked(originalTotal * (100m + ratioPercent) / 100m);
+        var factorPercent = 100m + ratioPercent;
+        decimal adjusted;
+        try { adjusted = checked(originalTotal * factorPercent / 100m); }
+        catch (OverflowException) { adjusted = checked((originalTotal / 100m) * factorPercent); }
         return new CostAdjustmentResult(originalTotal, adjusted, adjusted - originalTotal, ratioPercent);
     }
 
