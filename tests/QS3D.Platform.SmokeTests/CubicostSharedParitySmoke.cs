@@ -136,6 +136,14 @@ internal static class CubicostSharedParitySmoke
         Equal(2, index.FindByRate("r1").Count);
         Equal(110m, CostAdjustmentService.ByRatio(100m, 10m).AdjustedTotal);
 
+        var target = CostAdjustmentService.ToTarget(100m, 125m);
+        Equal(125m, target.AdjustedTotal);
+        Equal(25m, target.RatioPercent);
+        var zero = CostAdjustmentService.ToTarget(0m, 0m);
+        Equal(0m, zero.AdjustedTotal);
+        Equal(0m, zero.RatioPercent);
+        Throws<InvalidOperationException>(() => CostAdjustmentService.ToTarget(0m, 1m));
+
         var trades = TradeCostAnalysisService.Analyze(new[]
         {
             new TradeCostLine("Structure", 60m),
