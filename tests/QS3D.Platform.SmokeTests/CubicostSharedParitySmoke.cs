@@ -84,6 +84,20 @@ internal static class CubicostSharedParitySmoke
         Equal(160m, buildUp.DirectUnitCost);
         Equal(184.8m, buildUp.UnitRate);
 
+        var largeOverhead = new CostRateBuildUp("R-MAX-OH", "MAX", "ea", "VND", new[]
+        {
+            new CostResourceComponent("MAX", "Large", "ea", 1m, decimal.MaxValue / 2m)
+        }, 50m, 0m);
+        Equal(decimal.MaxValue / 4m, largeOverhead.OverheadUnitCost);
+        Equal((decimal.MaxValue / 4m) * 3m, largeOverhead.UnitRate);
+
+        var largeProfit = new CostRateBuildUp("R-MAX-P", "MAX", "ea", "VND", new[]
+        {
+            new CostResourceComponent("MAX", "Large", "ea", 1m, decimal.MaxValue / 2m)
+        }, 0m, 50m);
+        Equal(decimal.MaxValue / 4m, largeProfit.ProfitUnitCost);
+        Equal((decimal.MaxValue / 4m) * 3m, largeProfit.UnitRate);
+
         var catalog = new HistoricalCostCatalog(new[]
         {
             new HistoricalCostRecord("H1", "CONC", "APT|HN", 10m, 100m, "VND", new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
@@ -185,6 +199,14 @@ internal static class CubicostSharedParitySmoke
         Equal(2m, claim.Lines[0].CertifiedThisPeriodQuantity);
         Equal(2m, claim.Lines[0].RejectedQuantity);
         Equal(180m, claim.NetCertifiedThisPeriod);
+
+        var largeClaim = new ProgressClaimService().Evaluate(
+            new[] { new ProgressContractItem("MAX", "ea", 1m, decimal.MaxValue / 2m) },
+            new[] { new ProgressClaimLine("MAX", 0m, 1m) },
+            50m);
+        Equal(decimal.MaxValue / 2m, largeClaim.GrossCertifiedThisPeriod);
+        Equal(decimal.MaxValue / 4m, largeClaim.RetentionThisPeriod);
+        Equal(decimal.MaxValue / 4m, largeClaim.NetCertifiedThisPeriod);
     }
 
     private static void TenderRevisionAndRounds()
