@@ -2,6 +2,15 @@ using System.Collections.ObjectModel;
 
 namespace QS3D.Platform.Parity;
 
+internal static class CostPercentageMath
+{
+    public static decimal Of(decimal value, decimal percent)
+    {
+        try { return checked(value * percent / 100m); }
+        catch (OverflowException) { return checked((value / 100m) * percent); }
+    }
+}
+
 public sealed class CostResourceComponent
 {
     public CostResourceComponent(string code, string description, string unit, decimal consumption, decimal unitCost)
@@ -56,9 +65,9 @@ public sealed class CostRateBuildUp
     public decimal OverheadPercent { get; }
     public decimal ProfitPercent { get; }
     public decimal DirectUnitCost => Components.Aggregate(0m, static (sum, item) => checked(sum + item.ExtendedCost));
-    public decimal OverheadUnitCost => checked(DirectUnitCost * OverheadPercent / 100m);
+    public decimal OverheadUnitCost => CostPercentageMath.Of(DirectUnitCost, OverheadPercent);
     public decimal ProfitBase => checked(DirectUnitCost + OverheadUnitCost);
-    public decimal ProfitUnitCost => checked(ProfitBase * ProfitPercent / 100m);
+    public decimal ProfitUnitCost => CostPercentageMath.Of(ProfitBase, ProfitPercent);
     public decimal UnitRate => checked(ProfitBase + ProfitUnitCost);
 }
 
@@ -298,10 +307,7 @@ public static class CostAdjustmentService
     {
         if (originalTotal < 0m) throw new ArgumentOutOfRangeException(nameof(originalTotal));
         if (ratioPercent < -100m) throw new ArgumentOutOfRangeException(nameof(ratioPercent));
-        var factorPercent = 100m + ratioPercent;
-        decimal adjusted;
-        try { adjusted = checked(originalTotal * factorPercent / 100m); }
-        catch (OverflowException) { adjusted = checked((originalTotal / 100m) * factorPercent); }
+        var adjusted = CostPercentageMath.Of(originalTotal, 100m + ratioPercent);
         return new CostAdjustmentResult(originalTotal, adjusted, adjusted - originalTotal, ratioPercent);
     }
 
@@ -569,7 +575,7 @@ public sealed class ProgressClaimService
             lines.Add(new ProgressClaimEvaluationLine(claim.ItemCode, certified, rejected, value));
         }
         lines.Sort(static (a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.ItemCode, b.ItemCode));
-        var retention = checked(gross * retentionPercent / 100m);
+        var retention = CostPercentageMath.Of(gross, retentionPercent);
         return new ProgressClaimResult(new ReadOnlyCollection<ProgressClaimEvaluationLine>(lines), gross, retention, gross - retention);
     }
 }
