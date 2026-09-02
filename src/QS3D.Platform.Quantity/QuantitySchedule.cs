@@ -1,3 +1,4 @@
+using System.Collections;
 using QS3D.Platform.Domain;
 
 namespace QS3D.Platform.Quantity;
@@ -22,7 +23,7 @@ public sealed class QuantityScheduleRow
         if (string.IsNullOrWhiteSpace(elementName)) throw new ArgumentException("Element name must not be blank.", nameof(elementName));
         if (string.IsNullOrWhiteSpace(familyName)) throw new ArgumentException("Family name must not be blank.", nameof(familyName));
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
-        var copiedQuantities = quantities.ToArray();
+        var copiedQuantities = QuantityScheduleMaterializer.Materialize(quantities, nameof(quantities), "schedule quantities");
         if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
         EnsureUniqueQuantityKeys(copiedQuantities);
         ElementId = elementId;
@@ -68,7 +69,7 @@ public sealed class QuantitySchedule
     public QuantitySchedule(IEnumerable<QuantityScheduleRow> rows)
     {
         if (rows is null) throw new ArgumentNullException(nameof(rows));
-        var copiedRows = rows.ToArray();
+        var copiedRows = QuantityScheduleMaterializer.Materialize(rows, nameof(rows), "schedule rows");
         if (copiedRows.Any(static row => row is null)) throw new ArgumentException("Schedule rows must not contain null entries.", nameof(rows));
         var elementIds = new HashSet<ElementId>();
         foreach (var row in copiedRows)
@@ -96,8 +97,10 @@ public static class QuantityScheduleProjector
         if (facts is null) throw new ArgumentNullException(nameof(facts));
 
         var elements = project.Elements.ToDictionary(static element => element.Id);
+        var copiedFacts = QuantityScheduleMaterializer.Materialize(facts, nameof(facts), "quantity facts");
+        if (copiedFacts.Any(static fact => fact is null)) throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
         var factsByElement = new Dictionary<ElementId, List<QuantityFact>>();
-        foreach (var fact in facts)
+        foreach (var fact in copiedFacts)
         {
             if (!elements.ContainsKey(fact.ElementId))
                 throw new InvalidOperationException($"Quantity fact '{fact.Code}' references element {fact.ElementId.Value:D}, which is not in the project.");
@@ -131,5 +134,53 @@ public static class QuantityScheduleProjector
         }
 
         return new QuantitySchedule(rows);
+    }
+}
+
+internal static class QuantityScheduleMaterializer
+{
+    internal const int MaximumEntries = 100_000;
+
+    internal static T[] Materialize<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        int? advertisedCount = null;
+        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+
+        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
+        foreach (var item in source)
+        {
+            if (result.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            result.Add(item);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        return result.ToArray();
+    }
+
+    private static void CaptureCount<TCollection>(
+        TCollection? collection,
+        Func<TCollection, int> getCount,
+        ref int? advertisedCount,
+        string parameterName,
+        string entryDescription)
+        where TCollection : class
+    {
+        if (collection is null) return;
+        var count = getCount(collection);
+        if (count < 0)
+            throw new ArgumentException($"{entryDescription} reported a negative Count.", parameterName);
+        if (count > MaximumEntries)
+            throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+        if (advertisedCount.HasValue && advertisedCount.Value != count)
+            throw new InvalidOperationException($"{entryDescription} expose conflicting Count values.");
+        advertisedCount = count;
     }
 }
