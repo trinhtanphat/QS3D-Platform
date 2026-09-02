@@ -70,7 +70,7 @@ public static class QuantityUnits
         var result = value * ScaleToCanonical(unit);
         if (!Numeric.IsFinite(result) || (value != 0d && result == 0d))
             throw new OverflowException(value.ToString("R", CultureInfo.InvariantCulture) + " " + Symbol(unit) + " cannot be represented in canonical units.");
-        return result;
+        return result == 0d ? 0d : result;
     }
 
     public static double FromCanonical(double canonicalValue, QuantityUnit unit)
@@ -79,7 +79,7 @@ public static class QuantityUnits
         var result = canonicalValue / ScaleToCanonical(unit);
         if (!Numeric.IsFinite(result) || (canonicalValue != 0d && result == 0d))
             throw new OverflowException("Canonical value " + canonicalValue.ToString("R", CultureInfo.InvariantCulture) + " cannot be represented as " + Symbol(unit) + ".");
-        return result;
+        return result == 0d ? 0d : result;
     }
 
     public static QuantityValue ToQuantityValue(double value, QuantityUnit unit)
