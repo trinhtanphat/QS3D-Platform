@@ -1,6 +1,6 @@
 # Work claim — C02 quantity negative-zero canonicalization
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T04:12:00+07:00`
 - Baseline main SHA: `1ff38ad7bcb5974055e6a1b5936bc7a54fe9d6eb`
@@ -8,6 +8,8 @@
 - Integration batch: `TBD`
 - Lane-Key: `c02-quantity-negative-zero-20260903`
 - Canonical issue: `#69`
+- Implementation merge: `c95cbdb611e1f40a3385bdb236ddbcbb916727e0`
+- Exact-main CI: `33684120054` SUCCESS
 
 ## Reserved scope
 Canonicalize IEEE-754 negative zero at public quantity value/unit-conversion boundaries so semantically identical zero evidence has one binary/text representation.
