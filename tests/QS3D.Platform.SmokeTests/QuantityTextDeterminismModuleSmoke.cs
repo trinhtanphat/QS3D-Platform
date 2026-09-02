@@ -20,6 +20,9 @@ internal static class QuantityTextDeterminismModuleSmoke
                 CultureInfo.GetCultureInfo("vi-VN")
             };
 
+            string? canonicalOverflowMessage = null;
+            string? unitOverflowMessage = null;
+
             foreach (var culture in cultures)
             {
                 CultureInfo.CurrentCulture = culture;
@@ -32,6 +35,16 @@ internal static class QuantityTextDeterminismModuleSmoke
                 var quantityText = new QuantityValue(QuantityDimension.Area, 1234.5d).ToString();
                 if (!StringComparer.Ordinal.Equals(quantityText, "1234.5 m2"))
                     throw new InvalidOperationException($"QuantityValue rendering is culture-dependent under {culture.Name}: '{quantityText}'.");
+
+                var currentCanonicalOverflow = CaptureOverflow(() => QuantityUnits.ToCanonical(1.2345e307d, QuantityUnit.Tonne));
+                canonicalOverflowMessage ??= currentCanonicalOverflow;
+                if (!StringComparer.Ordinal.Equals(canonicalOverflowMessage, currentCanonicalOverflow))
+                    throw new InvalidOperationException($"ToCanonical overflow diagnostics changed under {culture.Name}: '{currentCanonicalOverflow}'.");
+
+                var currentUnitOverflow = CaptureOverflow(() => QuantityUnits.FromCanonical(1.2345e307d, QuantityUnit.CubicMillimeter));
+                unitOverflowMessage ??= currentUnitOverflow;
+                if (!StringComparer.Ordinal.Equals(unitOverflowMessage, currentUnitOverflow))
+                    throw new InvalidOperationException($"FromCanonical overflow diagnostics changed under {culture.Name}: '{currentUnitOverflow}'.");
             }
         }
         finally
@@ -41,5 +54,19 @@ internal static class QuantityTextDeterminismModuleSmoke
         }
 
         Console.WriteLine("PASS quantity/commercial text culture determinism");
+    }
+
+    private static string CaptureOverflow(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (OverflowException ex)
+        {
+            return ex.Message;
+        }
+
+        throw new InvalidOperationException("Expected an OverflowException from quantity unit conversion.");
     }
 }
