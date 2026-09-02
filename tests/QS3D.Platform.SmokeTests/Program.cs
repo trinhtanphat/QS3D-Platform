@@ -16,6 +16,7 @@ var tests = new (string Name, Action Run)[]
     ("quantity accumulation", QuantityAccumulation),
     ("quantity schedule cardinality", QuantityScheduleCardinalityModuleSmoke.Run),
     ("quantity accumulator cardinality", QuantityAccumulatorCardinalityModuleSmoke.Run),
+    ("quantity rule cardinality", QuantityRuleCardinalityModuleSmoke.Run),
     ("Cubicost-style shared parity", CubicostSharedParitySmoke.Run),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("transactional layer ownership", TransactionalLayerOwnership),
