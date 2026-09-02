@@ -1,6 +1,6 @@
 # Work claim — C02 direct BOQ arithmetic integrity
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T03:49:31+07:00`
 - Baseline main SHA: `bddb24cd322806143d850f9f3f0e6f004ab8947e`
@@ -17,16 +17,11 @@ Validate arithmetic and decimal-evidence integrity for caller-supplied `BoqLine`
 - `tests/QS3D.Platform.SmokeTests/BoqDirectLineIntegrityModuleSmoke.cs`
 - this coordination claim
 
-## Excluded scope
-Quantity accumulation/rules/units, schedules/CSV beyond compatibility, UI/MCP/Core persistence, release/install.
-
-## Validation plan
-- TDD RED for stale caller-supplied line total
-- TDD RED for direct unrepresentable double quantity bypass
-- checked multiplication overflow fail-closed regression
-- preserve currency guard and projector-generated lines
-- use one shared invariant round-trip double→decimal conversion path
-- exact-head hosted CI and post-merge exact-main CI
+## Validation evidence
+- TDD RED: `5a049dfd0cf3ab3b1d988648c906483367c3f9c0`, CI `33681745639` failed authoritative validation.
+- GREEN exact implementation head: `574757139b1b1a9b011312ce595ed4e2c6922960`, CI `33681847305` GREEN.
+- Implementation merge: `bf81fc654f0b6d95c5c8210dea3dc5dbd585404f`.
+- Exact-main CI: `33681931777` GREEN on the merge SHA.
 
 ## Completion condition
-Direct `BoqProjection` input enforces the same decimal representation and commercial arithmetic invariants as `BoqProjector`, exact-head CI is green, implementation is merged, and exact-main CI is verified.
+Satisfied: direct BOQ lines now enforce shared decimal conversion, checked multiplication, exact total consistency, currency integrity, and exact-main CI is green.
