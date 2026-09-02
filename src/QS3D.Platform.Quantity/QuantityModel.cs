@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
@@ -114,16 +115,57 @@ public sealed class QuantitySummary
 
 public static class QuantityAccumulator
 {
+    private const int MaximumFacts = 100_000;
+
     public static IReadOnlyList<QuantitySummary> Summarize(IEnumerable<QuantityFact> facts)
     {
         if (facts is null) throw new ArgumentNullException(nameof(facts));
 
-        return facts
+        var copiedFacts = MaterializeFacts(facts);
+        if (copiedFacts.Any(static fact => fact is null))
+            throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
+
+        return copiedFacts
             .GroupBy(static fact => new QuantityKey(fact.Code, fact.Quantity.Dimension), QuantityKeyComparer.Instance)
             .Select(static group => CreateSummary(group.Key, group))
             .OrderBy(static summary => summary.Code, StringComparer.Ordinal)
             .ThenBy(static summary => summary.Quantity.Dimension)
             .ToArray();
+    }
+
+    private static QuantityFact[] MaterializeFacts(IEnumerable<QuantityFact> facts)
+    {
+        int? advertisedCount = null;
+        CaptureCount(facts as ICollection<QuantityFact>, static collection => collection.Count, ref advertisedCount);
+        CaptureCount(facts as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref advertisedCount);
+        CaptureCount(facts as ICollection, static collection => collection.Count, ref advertisedCount);
+
+        var copied = advertisedCount.HasValue ? new List<QuantityFact>(advertisedCount.Value) : new List<QuantityFact>();
+        foreach (var fact in facts)
+        {
+            if (copied.Count >= MaximumFacts)
+                throw new InvalidOperationException($"Quantity facts exceed the supported maximum of {MaximumFacts} entries.");
+            copied.Add(fact);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
+            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+
+        return copied.ToArray();
+    }
+
+    private static void CaptureCount<TCollection>(TCollection? collection, Func<TCollection, int> getCount, ref int? advertisedCount)
+        where TCollection : class
+    {
+        if (collection is null) return;
+        var count = getCount(collection);
+        if (count < 0)
+            throw new ArgumentException("Quantity facts reported a negative Count.", "facts");
+        if (count > MaximumFacts)
+            throw new InvalidOperationException($"Quantity facts exceed the supported maximum of {MaximumFacts} entries.");
+        if (advertisedCount.HasValue && advertisedCount.Value != count)
+            throw new InvalidOperationException("Quantity facts expose conflicting Count values.");
+        advertisedCount = count;
     }
 
     private static QuantitySummary CreateSummary(QuantityKey key, IEnumerable<QuantityFact> facts)
