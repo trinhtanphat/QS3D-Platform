@@ -27,6 +27,10 @@ internal static class PersistenceSnapshotModuleSmoke
         Equal("A", restoredElement.SourceReference!.Value.Handle.Value);
         Equal("B", restoredElement.GeneratedReferences.Single().Handle.Value);
 
+        var locationDrift = BuildProject();
+        locationDrift.Elements.Single().AssignLocation(new FloorId(Guid.NewGuid()), new ZoneId(Guid.NewGuid()));
+        Throws<InvalidDataException>(() => SemanticSnapshotService.Capture(locationDrift));
+
         var missingFloor = new ElementSnapshot(
             snapshot.Elements[0].Id,
             snapshot.Elements[0].Kind,

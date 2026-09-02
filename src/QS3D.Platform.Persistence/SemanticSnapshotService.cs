@@ -9,7 +9,7 @@ public static class SemanticSnapshotService
     public static SemanticProjectSnapshot Capture(SemanticProject project)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
-        return new SemanticProjectSnapshot(
+        var snapshot = new SemanticProjectSnapshot(
             CurrentSchemaVersion,
             project.Id.Value,
             project.Name,
@@ -17,6 +17,8 @@ public static class SemanticSnapshotService
             project.Zones.OrderBy(static x => x.Id.Value).Select(static zone => new ZoneSnapshot(zone.Id.Value, zone.Name)),
             project.Families.OrderBy(static x => x.Id.Value).Select(static family => new FamilySnapshot(family.Id.Value, family.Kind, family.Name)),
             project.Elements.OrderBy(static x => x.Id.Value).Select(ToSnapshot));
+        ValidateCrossReferences(snapshot);
+        return snapshot;
     }
 
     public static SemanticProject Restore(SemanticProjectSnapshot snapshot, SemanticSnapshotMigrator? migrator = null)
