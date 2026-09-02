@@ -115,7 +115,7 @@ public static class QuantityAccumulator
         var factCount = 0;
         var elementIds = new HashSet<ElementId>();
 
-        foreach (var fact in facts)
+        foreach (var fact in facts.OrderBy(static fact => fact.Quantity.Value))
         {
             var corrected = fact.Quantity.Value - compensation;
             var next = sum + corrected;
