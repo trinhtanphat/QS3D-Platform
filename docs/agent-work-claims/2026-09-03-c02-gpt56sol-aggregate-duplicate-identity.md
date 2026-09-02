@@ -1,6 +1,6 @@
 # Work claim — C02 aggregate duplicate identity safety
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T03:43:02+07:00`
 - Baseline main SHA: `750aa7a95f1c868838d4432b0e1bbba606ed3c7b`
@@ -21,12 +21,11 @@ Fail closed on duplicate aggregate identities at public Quantity schedule and BO
 ## Excluded scope
 Quantity rule arithmetic, unit conversion, MCP/UI/Core persistence, release/install, unrelated export formats.
 
-## Validation plan
-- TDD RED for duplicate `(Code, Dimension)` summaries within one schedule row
-- TDD RED for duplicate `ElementId` schedule rows
-- TDD RED for duplicate `(Code, Dimension)` BOQ lines and inflated totals
-- explicit null-entry behavior and valid deterministic ordering regression
-- exact-head hosted CI and post-merge exact-main CI
+## Validation evidence
+- TDD RED head: `7d9ff4c54f088f9a013db11da30965fc82ef868a`, CI `33681222067` failed authoritative validation.
+- GREEN exact implementation head: `e2b765c51bd33c455511567f9000e00221137b26`, CI `33681365021` GREEN.
+- Implementation merge commit: `bddb24cd322806143d850f9f3f0e6f004ab8947e`.
+- Exact-main CI: `33681465685` GREEN on `bddb24cd322806143d850f9f3f0e6f004ab8947e`.
 
 ## Completion condition
-All three public container boundaries reject ambiguous duplicate identities before export/summing, valid ordering remains deterministic, exact-head CI is green, implementation is merged to current `main`, and exact-main CI is verified.
+Satisfied: duplicate schedule/BOQ identities and null BOQ entries fail closed before sorting/export/summing, implementation is merged, and exact-main CI is green.
