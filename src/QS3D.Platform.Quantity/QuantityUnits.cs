@@ -1,3 +1,4 @@
+using System.Globalization;
 using QS3D.Platform.Geometry;
 
 namespace QS3D.Platform.Quantity;
@@ -67,7 +68,8 @@ public static class QuantityUnits
     {
         value = Numeric.RequireNonNegativeFinite(value, nameof(value));
         var result = value * ScaleToCanonical(unit);
-        if (!Numeric.IsFinite(result)) throw new OverflowException($"{value:R} {Symbol(unit)} cannot be represented in canonical units.");
+        if (!Numeric.IsFinite(result))
+            throw new OverflowException(value.ToString("R", CultureInfo.InvariantCulture) + " " + Symbol(unit) + " cannot be represented in canonical units.");
         return result;
     }
 
@@ -75,7 +77,8 @@ public static class QuantityUnits
     {
         canonicalValue = Numeric.RequireNonNegativeFinite(canonicalValue, nameof(canonicalValue));
         var result = canonicalValue / ScaleToCanonical(unit);
-        if (!Numeric.IsFinite(result)) throw new OverflowException($"Canonical value {canonicalValue:R} cannot be represented as {Symbol(unit)}.");
+        if (!Numeric.IsFinite(result))
+            throw new OverflowException("Canonical value " + canonicalValue.ToString("R", CultureInfo.InvariantCulture) + " cannot be represented as " + Symbol(unit) + ".");
         return result;
     }
 

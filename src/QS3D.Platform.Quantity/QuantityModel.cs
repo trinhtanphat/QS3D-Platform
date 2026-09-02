@@ -1,3 +1,4 @@
+using System.Globalization;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
 
@@ -46,7 +47,7 @@ public readonly struct QuantityValue : IEquatable<QuantityValue>
     {
         unchecked { return ((int)Dimension * 397) ^ Value.GetHashCode(); }
     }
-    public override string ToString() => $"{Value:R} {CanonicalUnit}";
+    public override string ToString() => Value.ToString("R", CultureInfo.InvariantCulture) + " " + CanonicalUnit;
 }
 
 public sealed class QuantityFact
