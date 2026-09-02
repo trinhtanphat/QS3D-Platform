@@ -5,11 +5,14 @@ namespace QS3D.Platform.Quantity;
 
 public static class QuantityScheduleCsv
 {
+    private const string CsvLineEnding = "\r\n";
+
     public static string Write(QuantitySchedule schedule)
     {
         if (schedule is null) throw new ArgumentNullException(nameof(schedule));
         var output = new StringBuilder();
-        output.AppendLine("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit");
+        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit");
+        output.Append(CsvLineEnding);
         foreach (var row in schedule.Rows.OrderBy(static row => row.ElementId.Value))
         {
             foreach (var summary in row.Quantities.OrderBy(static summary => summary.Code, StringComparer.Ordinal))
@@ -50,6 +53,7 @@ public static class QuantityScheduleCsv
     private static void Append(StringBuilder output, string value, bool last = false)
     {
         if (value is null) throw new ArgumentNullException(nameof(value));
+        value = NormalizeLineEndings(value);
         var mustQuote = value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) >= 0;
         if (mustQuote)
         {
@@ -61,9 +65,12 @@ public static class QuantityScheduleCsv
         {
             output.Append(value);
         }
-        if (last) output.AppendLine();
+        if (last) output.Append(CsvLineEnding);
         else output.Append(',');
     }
+
+    private static string NormalizeLineEndings(string value) =>
+        value.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", CsvLineEnding);
 
     private static string CanonicalSymbol(QuantityDimension dimension)
     {
