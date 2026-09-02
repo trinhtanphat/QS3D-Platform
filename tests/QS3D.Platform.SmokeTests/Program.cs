@@ -14,6 +14,7 @@ var tests = new (string Name, Action Run)[]
     ("semantic family kind invariant", SemanticFamilyKindInvariant),
     ("semantic health references", SemanticHealthReferences),
     ("quantity accumulation", QuantityAccumulation),
+    ("quantity accumulator cardinality", QuantityAccumulatorCardinalityModuleSmoke.Run),
     ("Cubicost-style shared parity", CubicostSharedParitySmoke.Run),
     ("transaction rollback and commit", TransactionRollbackAndCommit),
     ("transactional layer ownership", TransactionalLayerOwnership),
