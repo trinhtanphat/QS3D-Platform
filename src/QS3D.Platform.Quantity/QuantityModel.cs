@@ -82,8 +82,25 @@ public sealed class QuantitySummary
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Quantity code must not be blank.", nameof(code));
         if (factCount < 0) throw new ArgumentOutOfRangeException(nameof(factCount));
         if (elementCount < 0) throw new ArgumentOutOfRangeException(nameof(elementCount));
+
+        var quantity = new QuantityValue(dimension, value);
+        if (factCount == 0)
+        {
+            if (elementCount != 0)
+                throw new ArgumentException("Element count must be zero when fact count is zero.", nameof(elementCount));
+            if (quantity.Value != 0d)
+                throw new ArgumentException("Quantity value must be zero when fact count is zero.", nameof(value));
+        }
+        else
+        {
+            if (elementCount == 0)
+                throw new ArgumentException("Element count must be positive when fact count is positive.", nameof(elementCount));
+            if (elementCount > factCount)
+                throw new ArgumentException("Element count must not exceed fact count.", nameof(elementCount));
+        }
+
         Code = code.Trim();
-        Quantity = new QuantityValue(dimension, value);
+        Quantity = quantity;
         FactCount = factCount;
         ElementCount = elementCount;
     }
