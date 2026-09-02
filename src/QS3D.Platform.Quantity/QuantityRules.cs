@@ -167,6 +167,14 @@ internal static class QuantityRuleMaterializer
         if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
             throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
 
+        int? finalCount = null;
+        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
+        if (advertisedCount.HasValue != finalCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != finalCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
         return copied.ToArray();
     }
 
