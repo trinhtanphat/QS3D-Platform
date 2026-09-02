@@ -14,7 +14,7 @@ Bound semantic snapshot collection/property materialization and reject hostile/m
 
 ## Expected surfaces
 - `src/QS3D.Platform.Persistence/SemanticSnapshotModel.cs`
-- `tests/QS3D.Platform.SmokeTests/PersistenceSnapshotModuleSmoke.cs`
+- `tests/QS3D.Platform.SmokeTests/SemanticSnapshotMaterializationModuleSmoke.cs`
 - this claim file
 
 ## Excluded scope
