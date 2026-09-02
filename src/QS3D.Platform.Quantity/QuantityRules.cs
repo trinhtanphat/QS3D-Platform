@@ -141,6 +141,9 @@ public sealed class QuantityRuleCatalog
 
 public static class QuantityRuleEngine
 {
+    private const double TwoTo52 = 4503599627370496d;
+    private const double MinimumNormal = 2.2250738585072014e-308d;
+
     public static IReadOnlyList<QuantityFact> Evaluate(
         SemanticProject project,
         QuantityRuleCatalog catalog,
@@ -173,7 +176,9 @@ public static class QuantityRuleEngine
         out bool missingInput)
     {
         missingInput = false;
-        var value = rule.Multiplier;
+        var productFactors = new List<double>(1 + rule.Factors.Count * 3);
+        productFactors.Add(rule.Multiplier);
+
         foreach (var factor in rule.Factors)
         {
             if (!element.Properties.TryGetValue(factor.PropertyName, out var raw))
@@ -190,11 +195,72 @@ public static class QuantityRuleEngine
                 throw new InvalidOperationException($"Element '{element.Name}' property '{factor.PropertyName}' must be a non-negative finite invariant-culture number for quantity rule '{rule.Code}'.");
 
             var canonical = QuantityUnits.ToCanonical(parsed, factor.Unit);
-            var powered = factor.Exponent == 1 ? canonical : Math.Pow(canonical, factor.Exponent);
-            if (!Numeric.IsFinite(powered)) throw new OverflowException($"Quantity rule '{rule.Code}' factor '{factor.PropertyName}' overflowed.");
-            value *= powered;
-            if (!Numeric.IsFinite(value)) throw new OverflowException($"Quantity rule '{rule.Code}' result overflowed for element '{element.Name}'.");
+            for (var i = 0; i < factor.Exponent; i++)
+                productFactors.Add(canonical);
         }
-        return value;
+
+        return MultiplyCanonicalFactors(productFactors, rule.Code, element.Name);
+    }
+
+    private static double MultiplyCanonicalFactors(List<double> factors, string ruleCode, string elementName)
+    {
+        if (factors.Any(static factor => factor == 0d))
+            return 0d;
+
+        factors.Sort();
+        var mantissa = 1d;
+        long exponent = 0;
+
+        foreach (var factor in factors)
+        {
+            DecomposePositiveFinite(factor, out var factorMantissa, out var factorExponent);
+            mantissa *= factorMantissa;
+            exponent += factorExponent;
+            if (mantissa >= 2d)
+            {
+                mantissa *= 0.5d;
+                exponent++;
+            }
+        }
+
+        var result = ComposeFiniteProduct(mantissa, exponent);
+        if (!Numeric.IsFinite(result))
+            throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
+        return result;
+    }
+
+    private static void DecomposePositiveFinite(double value, out double mantissa, out int exponent)
+    {
+        var bits = BitConverter.DoubleToInt64Bits(value);
+        var rawExponent = (int)((bits >> 52) & 0x7ffL);
+        var fraction = bits & 0x000fffffffffffffL;
+
+        if (rawExponent != 0)
+        {
+            exponent = rawExponent - 1023;
+            mantissa = 1d + fraction / TwoTo52;
+            return;
+        }
+
+        var significandBits = (ulong)fraction;
+        var highestBit = 0;
+        for (var cursor = significandBits; (cursor >>= 1) != 0; highestBit++)
+        {
+        }
+
+        exponent = highestBit - 1074;
+        mantissa = (double)significandBits / (1L << highestBit);
+    }
+
+    private static double ComposeFiniteProduct(double mantissa, long exponent)
+    {
+        if (exponent > 1023)
+            return double.PositiveInfinity;
+        if (exponent < -1075)
+            return 0d;
+        if (exponent >= -1022)
+            return mantissa * Math.Pow(2d, exponent);
+
+        return mantissa * Math.Pow(2d, exponent + 1022) * MinimumNormal;
     }
 }
