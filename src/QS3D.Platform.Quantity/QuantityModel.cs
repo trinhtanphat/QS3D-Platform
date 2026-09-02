@@ -151,6 +151,16 @@ public static class QuantityAccumulator
         if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
             throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
 
+        int? finalCount = null;
+        CaptureCount(facts as ICollection<QuantityFact>, static collection => collection.Count, ref finalCount);
+        CaptureCount(facts as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref finalCount);
+        CaptureCount(facts as ICollection, static collection => collection.Count, ref finalCount);
+
+        if (finalCount.HasValue && finalCount.Value != copied.Count)
+            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+        if (advertisedCount.HasValue && finalCount.HasValue && advertisedCount.Value != finalCount.Value)
+            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+
         return copied.ToArray();
     }
 
