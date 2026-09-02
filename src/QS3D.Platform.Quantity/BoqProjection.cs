@@ -110,9 +110,12 @@ public static class BoqProjector
         }
 
         var lines = new List<BoqLine>();
+        var quantityKeys = new HashSet<RateKey>(RateKeyComparer.Instance);
         foreach (var quantity in quantities)
         {
             var key = new RateKey(quantity.Code, quantity.Quantity.Dimension);
+            if (!quantityKeys.Add(key))
+                throw new InvalidOperationException($"Duplicate quantity summary for '{quantity.Code}'/{quantity.Quantity.Dimension}.");
             if (!rateMap.TryGetValue(key, out var rate))
             {
                 if (requireRateForEveryQuantity)
