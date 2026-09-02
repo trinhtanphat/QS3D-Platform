@@ -23,6 +23,9 @@ internal static class QuantityNegativeZeroModuleSmoke
         var explicitPositiveZero = new QuantityValue(QuantityDimension.Volume, 0d);
         RequirePositiveZero(failures, "positive zero", explicitPositiveZero.Value);
 
+        ExpectInvalidUnit(failures, "ToCanonical invalid unit", () => QuantityUnits.ToCanonical(negativeZero, (QuantityUnit)int.MaxValue));
+        ExpectInvalidUnit(failures, "FromCanonical invalid unit", () => QuantityUnits.FromCanonical(negativeZero, (QuantityUnit)int.MaxValue));
+
         if (failures.Count != 0)
             throw new InvalidOperationException("Quantity negative-zero canonicalization failed: " + string.Join("; ", failures));
 
@@ -39,5 +42,21 @@ internal static class QuantityNegativeZeroModuleSmoke
 
         if (BitConverter.DoubleToInt64Bits(value) != 0L)
             failures.Add(scenario + " preserved a negative-zero sign bit");
+    }
+
+    private static void ExpectInvalidUnit(List<string> failures, string scenario, Action action)
+    {
+        try
+        {
+            action();
+            failures.Add(scenario + " was accepted");
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+        }
+        catch (Exception ex)
+        {
+            failures.Add(scenario + " threw unexpected " + ex.GetType().Name);
+        }
     }
 }
