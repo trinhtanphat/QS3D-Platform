@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 
 namespace QS3D.Platform.Quantity;
@@ -75,7 +76,7 @@ public sealed class BoqProjection
     {
         if (lines is null) throw new ArgumentNullException(nameof(lines));
         Currency = new Money(0m, currency).Currency;
-        var copiedLines = lines.ToArray();
+        var copiedLines = BoqInputMaterializer.Materialize(lines, nameof(lines), "BQ lines");
         if (copiedLines.Any(static line => line is null))
             throw new ArgumentException("BQ lines must not contain null entries.", nameof(lines));
         EnsureUniqueLineKeys(copiedLines);
@@ -127,9 +128,15 @@ public static class BoqProjector
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
         if (rates is null) throw new ArgumentNullException(nameof(rates));
         var normalizedCurrency = new Money(0m, currency).Currency;
+        var copiedRates = BoqInputMaterializer.Materialize(rates, nameof(rates), "BQ unit rates");
+        if (copiedRates.Any(static rate => rate is null))
+            throw new ArgumentException("BQ unit rates must not contain null entries.", nameof(rates));
+        var copiedQuantities = BoqInputMaterializer.Materialize(quantities, nameof(quantities), "BQ quantity summaries");
+        if (copiedQuantities.Any(static quantity => quantity is null))
+            throw new ArgumentException("BQ quantity summaries must not contain null entries.", nameof(quantities));
 
         var rateMap = new Dictionary<RateKey, UnitRate>(RateKeyComparer.Instance);
-        foreach (var rate in rates)
+        foreach (var rate in copiedRates)
         {
             if (!StringComparer.Ordinal.Equals(rate.Currency, normalizedCurrency))
                 throw new InvalidOperationException($"Rate '{rate.QuantityCode}' uses {rate.Currency}, expected {normalizedCurrency}.");
@@ -141,7 +148,7 @@ public static class BoqProjector
 
         var lines = new List<BoqLine>();
         var quantityKeys = new HashSet<RateKey>(RateKeyComparer.Instance);
-        foreach (var quantity in quantities)
+        foreach (var quantity in copiedQuantities)
         {
             var key = new RateKey(quantity.Code, quantity.Quantity.Dimension);
             if (!quantityKeys.Add(key))
@@ -180,6 +187,64 @@ public static class BoqProjector
         {
             unchecked { return (StringComparer.Ordinal.GetHashCode(obj.Code) * 397) ^ (int)obj.Dimension; }
         }
+    }
+}
+
+internal static class BoqInputMaterializer
+{
+    internal const int MaximumEntries = 100_000;
+
+    internal static T[] Materialize<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        var advertisedCount = CaptureCurrentCount(source, parameterName, entryDescription);
+        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
+        foreach (var item in source)
+        {
+            if (result.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            result.Add(item);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        var finalCount = CaptureCurrentCount(source, parameterName, entryDescription);
+        if (advertisedCount.HasValue != finalCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != finalCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        return result.ToArray();
+    }
+
+    private static int? CaptureCurrentCount<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    {
+        int? count = null;
+        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref count, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref count, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref count, parameterName, entryDescription);
+        return count;
+    }
+
+    private static void CaptureCount<TCollection>(
+        TCollection? collection,
+        Func<TCollection, int> getCount,
+        ref int? advertisedCount,
+        string parameterName,
+        string entryDescription)
+        where TCollection : class
+    {
+        if (collection is null) return;
+        var count = getCount(collection);
+        if (count < 0)
+            throw new ArgumentException($"{entryDescription} reported a negative Count.", parameterName);
+        if (count > MaximumEntries)
+            throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+        if (advertisedCount.HasValue && advertisedCount.Value != count)
+            throw new InvalidOperationException($"{entryDescription} expose conflicting Count values.");
+        advertisedCount = count;
     }
 }
 
