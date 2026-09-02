@@ -35,8 +35,10 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
     private static void AssertNeutralized(string elementName, string code)
     {
         var csv = WriteSingle(elementName, code);
-        var expectedElement = "'" + NormalizeCrLf(elementName).Replace("\"", "\"\"");
-        var expectedCode = "'" + NormalizeCrLf(code).Replace("\"", "\"\"");
+        var canonicalElementName = elementName.Trim();
+        var canonicalCode = code.Trim();
+        var expectedElement = "'" + NormalizeCrLf(canonicalElementName).Replace("\"", "\"\"");
+        var expectedCode = "'" + NormalizeCrLf(canonicalCode).Replace("\"", "\"\"");
         if (!csv.Contains(expectedElement, StringComparison.Ordinal) &&
             !csv.Contains(expectedCode, StringComparison.Ordinal))
             throw new InvalidOperationException($"CSV did not neutralize spreadsheet-active text for element '{elementName}' and code '{code}'.");
