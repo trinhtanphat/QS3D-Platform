@@ -19,7 +19,8 @@ public readonly struct QuantityValue : IEquatable<QuantityValue>
     {
         if (!Enum.IsDefined(typeof(QuantityDimension), dimension)) throw new ArgumentOutOfRangeException(nameof(dimension));
         Dimension = dimension;
-        Value = Numeric.RequireNonNegativeFinite(value, nameof(value));
+        value = Numeric.RequireNonNegativeFinite(value, nameof(value));
+        Value = value == 0d ? 0d : value;
     }
 
     public QuantityDimension Dimension { get; }
