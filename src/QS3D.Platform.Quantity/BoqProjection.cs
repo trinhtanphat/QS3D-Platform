@@ -80,8 +80,16 @@ public sealed class BoqProjection
         Lines = copiedLines.OrderBy(static x => x.Code, StringComparer.Ordinal)
             .ThenBy(static x => x.Quantity.Dimension)
             .ToArray();
-        if (Lines.Any(line => !StringComparer.Ordinal.Equals(line.Total.Currency, Currency)))
-            throw new InvalidOperationException("All BQ lines must use the projection currency.");
+
+        foreach (var line in Lines)
+        {
+            if (!StringComparer.Ordinal.Equals(line.Total.Currency, Currency))
+                throw new InvalidOperationException("All BQ lines must use the projection currency.");
+            var expectedTotal = BoqArithmetic.CalculateTotal(line.Code, line.Quantity, line.UnitRate);
+            if (line.Total.Amount != expectedTotal)
+                throw new InvalidOperationException($"BQ line total mismatch for '{line.Code}'/{line.Quantity.Dimension}: expected {expectedTotal.ToString(CultureInfo.InvariantCulture)}, got {line.Total.Amount.ToString(CultureInfo.InvariantCulture)}.");
+        }
+
         Total = new Money(Lines.Sum(static line => line.Total.Amount), Currency);
     }
 
@@ -143,15 +151,7 @@ public static class BoqProjector
                 continue;
             }
 
-            var canonicalQuantity = ConvertCanonicalQuantityToDecimal(quantity);
-
-            decimal total;
-            try { total = checked(canonicalQuantity * rate.AmountPerCanonicalUnit); }
-            catch (OverflowException ex)
-            {
-                throw new OverflowException($"Cost for '{quantity.Code}' exceeds decimal range.", ex);
-            }
-
+            var total = BoqArithmetic.CalculateTotal(quantity.Code, quantity.Quantity, rate.AmountPerCanonicalUnit);
             lines.Add(new BoqLine(
                 quantity.Code,
                 quantity.Quantity,
@@ -161,23 +161,6 @@ public static class BoqProjector
         }
 
         return new BoqProjection(lines, normalizedCurrency);
-    }
-
-    private static decimal ConvertCanonicalQuantityToDecimal(QuantitySummary quantity)
-    {
-        var source = quantity.Quantity.Value;
-        var roundTripText = source.ToString("R", CultureInfo.InvariantCulture);
-        if (!decimal.TryParse(
-                roundTripText,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var canonicalQuantity)
-            || (double)canonicalQuantity != source)
-        {
-            throw new OverflowException($"Quantity '{quantity.Code}' cannot be represented as decimal for cost projection.");
-        }
-
-        return canonicalQuantity;
     }
 
     private readonly struct RateKey
@@ -195,5 +178,35 @@ public static class BoqProjector
         {
             unchecked { return (StringComparer.Ordinal.GetHashCode(obj.Code) * 397) ^ (int)obj.Dimension; }
         }
+    }
+}
+
+internal static class BoqArithmetic
+{
+    public static decimal CalculateTotal(string code, QuantityValue quantity, decimal unitRate)
+    {
+        var canonicalQuantity = ConvertCanonicalQuantityToDecimal(code, quantity);
+        try { return checked(canonicalQuantity * unitRate); }
+        catch (OverflowException ex)
+        {
+            throw new OverflowException($"Cost for '{code}' exceeds decimal range.", ex);
+        }
+    }
+
+    private static decimal ConvertCanonicalQuantityToDecimal(string code, QuantityValue quantity)
+    {
+        var source = quantity.Value;
+        var roundTripText = source.ToString("R", CultureInfo.InvariantCulture);
+        if (!decimal.TryParse(
+                roundTripText,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var canonicalQuantity)
+            || (double)canonicalQuantity != source)
+        {
+            throw new OverflowException($"Quantity '{code}' cannot be represented as decimal for cost projection.");
+        }
+
+        return canonicalQuantity;
     }
 }
