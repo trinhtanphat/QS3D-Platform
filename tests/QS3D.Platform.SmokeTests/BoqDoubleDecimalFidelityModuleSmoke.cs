@@ -11,6 +11,7 @@ internal static class BoqDoubleDecimalFidelityModuleSmoke
     {
         VerifyRoundTripPrecision();
         VerifyNonzeroUnderflowFailsClosed();
+        VerifySubDecimalRoundingFailsClosed();
         Console.WriteLine("PASS BOQ double/decimal round-trip fidelity");
     }
 
@@ -35,16 +36,26 @@ internal static class BoqDoubleDecimalFidelityModuleSmoke
 
     private static void VerifyNonzeroUnderflowFailsClosed()
     {
-        var summary = new QuantitySummary("LEN", QuantityDimension.Length, double.Epsilon, factCount: 1, elementCount: 1);
-        var rate = new UnitRate("LEN", QuantityDimension.Length, 1m, "USD");
+        ExpectUnrepresentable("LEN", QuantityDimension.Length, double.Epsilon);
+    }
+
+    private static void VerifySubDecimalRoundingFailsClosed()
+    {
+        ExpectUnrepresentable("AREA", QuantityDimension.Area, 9e-29d);
+    }
+
+    private static void ExpectUnrepresentable(string code, QuantityDimension dimension, double source)
+    {
+        var summary = new QuantitySummary(code, dimension, source, factCount: 1, elementCount: 1);
+        var rate = new UnitRate(code, dimension, 1m, "USD");
 
         try
         {
             var projection = BoqProjector.Project(new[] { summary }, new[] { rate }, "USD");
             throw new InvalidOperationException(
-                $"Nonzero quantity underflow was accepted as {projection.Total.Amount.ToString(CultureInfo.InvariantCulture)} USD.");
+                $"Unrepresentable quantity {source.ToString("R", CultureInfo.InvariantCulture)} was accepted as {projection.Total.Amount.ToString(CultureInfo.InvariantCulture)} USD.");
         }
-        catch (OverflowException ex) when (ex.Message.StartsWith("Quantity 'LEN' cannot be represented as decimal", StringComparison.Ordinal))
+        catch (OverflowException ex) when (ex.Message.StartsWith($"Quantity '{code}' cannot be represented as decimal", StringComparison.Ordinal))
         {
         }
     }
