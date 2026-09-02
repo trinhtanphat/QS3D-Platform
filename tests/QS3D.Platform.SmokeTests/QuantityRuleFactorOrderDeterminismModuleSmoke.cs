@@ -19,6 +19,10 @@ internal static class QuantityRuleFactorOrderDeterminismModuleSmoke
         element.SetProperty("HugeB", "1e308");
         element.SetProperty("TinyA", "1e-308");
         element.SetProperty("TinyB", "1e-308");
+        element.SetProperty("PowerTiny", "1e-200");
+        element.SetProperty("Zero", "0");
+        element.SetProperty("TenA", "10");
+        element.SetProperty("TenB", "10");
 
         var project = new SemanticProject(
             new ProjectId(Guid.Parse("12345678-1234-1234-1234-123456789abc")),
@@ -60,6 +64,25 @@ internal static class QuantityRuleFactorOrderDeterminismModuleSmoke
         if (!double.IsFinite(overflowFirst) || overflowFirst <= 0d)
             throw new InvalidOperationException($"Expected a positive finite quantity result, got {overflowFirst:R}.");
 
+        var powered = Evaluate(project, new[]
+        {
+            new QuantityFactor("PowerTiny", QuantityUnit.Meter, exponent: 2),
+            new QuantityFactor("HugeA", QuantityUnit.Meter)
+        });
+        if (!double.IsFinite(powered) || powered <= 0d)
+            throw new InvalidOperationException($"Representable powered-factor result was lost to intermediate underflow: {powered:R}.");
+
+        var zeroProduct = Evaluate(project, new[]
+        {
+            new QuantityFactor("HugeA", QuantityUnit.Meter),
+            new QuantityFactor("HugeB", QuantityUnit.Meter),
+            new QuantityFactor("Zero", QuantityUnit.Meter)
+        });
+        if (zeroProduct != 0d)
+            throw new InvalidOperationException($"Zero factor must deterministically yield zero, got {zeroProduct:R}.");
+
+        AssertGenuineOverflow(project);
+
         Console.WriteLine("PASS quantity rule factor-order determinism");
     }
 
@@ -72,5 +95,24 @@ internal static class QuantityRuleFactorOrderDeterminismModuleSmoke
             factors);
         var facts = QuantityRuleEngine.Evaluate(project, new QuantityRuleCatalog(new[] { rule }));
         return facts.Single().Quantity.Value;
+    }
+
+    private static void AssertGenuineOverflow(SemanticProject project)
+    {
+        try
+        {
+            Evaluate(project, new[]
+            {
+                new QuantityFactor("HugeA", QuantityUnit.Meter),
+                new QuantityFactor("TenA", QuantityUnit.Meter),
+                new QuantityFactor("TenB", QuantityUnit.Meter)
+            });
+        }
+        catch (OverflowException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Genuinely non-representable final quantity must fail closed with OverflowException.");
     }
 }
