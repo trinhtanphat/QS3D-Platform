@@ -73,7 +73,11 @@ public sealed class BoqProjection
     {
         if (lines is null) throw new ArgumentNullException(nameof(lines));
         Currency = new Money(0m, currency).Currency;
-        Lines = lines.OrderBy(static x => x.Code, StringComparer.Ordinal)
+        var copiedLines = lines.ToArray();
+        if (copiedLines.Any(static line => line is null))
+            throw new ArgumentException("BQ lines must not contain null entries.", nameof(lines));
+        EnsureUniqueLineKeys(copiedLines);
+        Lines = copiedLines.OrderBy(static x => x.Code, StringComparer.Ordinal)
             .ThenBy(static x => x.Quantity.Dimension)
             .ToArray();
         if (Lines.Any(line => !StringComparer.Ordinal.Equals(line.Total.Currency, Currency)))
@@ -84,6 +88,22 @@ public sealed class BoqProjection
     public string Currency { get; }
     public IReadOnlyList<BoqLine> Lines { get; }
     public Money Total { get; }
+
+    private static void EnsureUniqueLineKeys(IEnumerable<BoqLine> lines)
+    {
+        var dimensionsByCode = new Dictionary<string, HashSet<QuantityDimension>>(StringComparer.Ordinal);
+        foreach (var line in lines)
+        {
+            if (!dimensionsByCode.TryGetValue(line.Code, out var dimensions))
+            {
+                dimensions = new HashSet<QuantityDimension>();
+                dimensionsByCode.Add(line.Code, dimensions);
+            }
+
+            if (!dimensions.Add(line.Quantity.Dimension))
+                throw new InvalidOperationException($"Duplicate BQ line for '{line.Code}'/{line.Quantity.Dimension}.");
+        }
+    }
 }
 
 public static class BoqProjector
