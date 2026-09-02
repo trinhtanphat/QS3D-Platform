@@ -123,12 +123,7 @@ public static class BoqProjector
                 continue;
             }
 
-            decimal canonicalQuantity;
-            try { canonicalQuantity = Convert.ToDecimal(quantity.Quantity.Value); }
-            catch (Exception ex) when (ex is OverflowException or FormatException)
-            {
-                throw new OverflowException($"Quantity '{quantity.Code}' cannot be represented as decimal for cost projection.", ex);
-            }
+            var canonicalQuantity = ConvertCanonicalQuantityToDecimal(quantity);
 
             decimal total;
             try { total = checked(canonicalQuantity * rate.AmountPerCanonicalUnit); }
@@ -146,6 +141,23 @@ public static class BoqProjector
         }
 
         return new BoqProjection(lines, normalizedCurrency);
+    }
+
+    private static decimal ConvertCanonicalQuantityToDecimal(QuantitySummary quantity)
+    {
+        var source = quantity.Quantity.Value;
+        var roundTripText = source.ToString("R", CultureInfo.InvariantCulture);
+        if (!decimal.TryParse(
+                roundTripText,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var canonicalQuantity)
+            || (source != 0d && canonicalQuantity == 0m))
+        {
+            throw new OverflowException($"Quantity '{quantity.Code}' cannot be represented as decimal for cost projection.");
+        }
+
+        return canonicalQuantity;
     }
 
     private readonly struct RateKey
