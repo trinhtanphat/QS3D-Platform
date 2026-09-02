@@ -17,11 +17,17 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
         AssertNeutralized("\t=1+1", "COUNT");
         AssertNeutralized("Safe", "=HYPERLINK(\"https://example.invalid\")");
         AssertNeutralized("=cmd,\"quoted\"\nline", "COUNT");
+        AssertNeutralized("\r\n=1+1", "COUNT");
 
         var benign = WriteSingle("Wall-01", "WALL.AREA");
         if (!benign.Contains(",Wall-01,WALL.AREA,Area,12.5,m2", StringComparison.Ordinal))
             throw new InvalidOperationException("Benign quantity CSV fields changed unexpectedly.");
         AssertCanonicalCrLf(benign);
+
+        var multiline = WriteSingle("Wall\rName\nSecond\r\nThird", "WALL.AREA");
+        if (!multiline.Contains("Wall\r\nName\r\nSecond\r\nThird", StringComparison.Ordinal))
+            throw new InvalidOperationException("Quantity CSV did not canonicalize embedded line endings.");
+        AssertCanonicalCrLf(multiline);
 
         Console.WriteLine("PASS quantity schedule CSV spreadsheet safety");
     }
@@ -29,8 +35,10 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
     private static void AssertNeutralized(string elementName, string code)
     {
         var csv = WriteSingle(elementName, code);
-        if (!csv.Contains("'" + elementName.Replace("\"", "\"\""), StringComparison.Ordinal) &&
-            !csv.Contains("'" + code.Replace("\"", "\"\""), StringComparison.Ordinal))
+        var expectedElement = "'" + NormalizeCrLf(elementName).Replace("\"", "\"\"");
+        var expectedCode = "'" + NormalizeCrLf(code).Replace("\"", "\"\"");
+        if (!csv.Contains(expectedElement, StringComparison.Ordinal) &&
+            !csv.Contains(expectedCode, StringComparison.Ordinal))
             throw new InvalidOperationException($"CSV did not neutralize spreadsheet-active text for element '{elementName}' and code '{code}'.");
         AssertCanonicalCrLf(csv);
     }
@@ -47,6 +55,9 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
                 throw new InvalidOperationException("Quantity CSV contains a non-canonical CR line ending.");
         }
     }
+
+    private static string NormalizeCrLf(string value) =>
+        value.Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "\r\n");
 
     private static string WriteSingle(string elementName, string code)
     {
