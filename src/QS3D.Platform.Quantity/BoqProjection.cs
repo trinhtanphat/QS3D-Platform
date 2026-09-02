@@ -52,6 +52,8 @@ public sealed class BoqLine
     {
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("BQ code must not be blank.", nameof(code));
         if (elementCount < 0) throw new ArgumentOutOfRangeException(nameof(elementCount));
+        if (elementCount == 0 && quantity.Value != 0d)
+            throw new ArgumentException("A positive BQ quantity requires at least one contributing element.", nameof(elementCount));
         if (unitRate < 0m) throw new ArgumentOutOfRangeException(nameof(unitRate));
         Code = code.Trim();
         Quantity = quantity;
