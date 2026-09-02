@@ -15,14 +15,36 @@ public static class QuantityScheduleCsv
             foreach (var summary in row.Quantities.OrderBy(static summary => summary.Code, StringComparer.Ordinal))
             {
                 Append(output, row.ElementId.Value.ToString("D", CultureInfo.InvariantCulture));
-                Append(output, row.ElementName);
-                Append(output, summary.Code);
+                Append(output, NeutralizeSpreadsheetActiveText(row.ElementName));
+                Append(output, NeutralizeSpreadsheetActiveText(summary.Code));
                 Append(output, summary.Quantity.Dimension.ToString());
                 Append(output, summary.Quantity.Value.ToString("R", CultureInfo.InvariantCulture));
                 Append(output, CanonicalSymbol(summary.Quantity.Dimension), last: true);
             }
         }
         return output.ToString();
+    }
+
+    private static string NeutralizeSpreadsheetActiveText(string value)
+    {
+        if (value is null) throw new ArgumentNullException(nameof(value));
+
+        var firstNonWhitespace = 0;
+        while (firstNonWhitespace < value.Length && char.IsWhiteSpace(value[firstNonWhitespace]))
+            firstNonWhitespace++;
+
+        if (firstNonWhitespace == value.Length) return value;
+
+        switch (value[firstNonWhitespace])
+        {
+            case '=':
+            case '+':
+            case '-':
+            case '@':
+                return "'" + value;
+            default:
+                return value;
+        }
     }
 
     private static void Append(StringBuilder output, string value, bool last = false)
