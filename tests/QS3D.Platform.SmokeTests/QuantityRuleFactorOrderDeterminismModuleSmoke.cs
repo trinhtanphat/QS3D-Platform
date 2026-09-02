@@ -17,7 +17,8 @@ internal static class QuantityRuleFactorOrderDeterminismModuleSmoke
             familyId);
         element.SetProperty("HugeA", "1e308");
         element.SetProperty("HugeB", "1e308");
-        element.SetProperty("Tiny", "1e-308");
+        element.SetProperty("TinyA", "1e-308");
+        element.SetProperty("TinyB", "1e-308");
 
         var project = new SemanticProject(
             new ProjectId(Guid.Parse("12345678-1234-1234-1234-123456789abc")),
@@ -25,21 +26,37 @@ internal static class QuantityRuleFactorOrderDeterminismModuleSmoke
         project.AddFamily(new Family(familyId, SemanticElementKind.Wall, "Wall family"));
         project.AddElement(element);
 
+        var underflowFirst = Evaluate(project, new[]
+        {
+            new QuantityFactor("TinyA", QuantityUnit.Meter),
+            new QuantityFactor("TinyB", QuantityUnit.Meter),
+            new QuantityFactor("HugeA", QuantityUnit.Meter)
+        });
+        var underflowAvoided = Evaluate(project, new[]
+        {
+            new QuantityFactor("TinyA", QuantityUnit.Meter),
+            new QuantityFactor("HugeA", QuantityUnit.Meter),
+            new QuantityFactor("TinyB", QuantityUnit.Meter)
+        });
+        if (!underflowFirst.Equals(underflowAvoided))
+            throw new InvalidOperationException($"Equivalent tiny/huge factor permutations diverged: {underflowFirst:R} vs {underflowAvoided:R}.");
+        if (underflowFirst <= 0d)
+            throw new InvalidOperationException("Representable positive quantity was rounded to zero by intermediate underflow.");
+
         var overflowFirst = Evaluate(project, new[]
         {
             new QuantityFactor("HugeA", QuantityUnit.Meter),
             new QuantityFactor("HugeB", QuantityUnit.Meter),
-            new QuantityFactor("Tiny", QuantityUnit.Meter)
+            new QuantityFactor("TinyA", QuantityUnit.Meter)
         });
-        var finiteFirst = Evaluate(project, new[]
+        var overflowAvoided = Evaluate(project, new[]
         {
             new QuantityFactor("HugeA", QuantityUnit.Meter),
-            new QuantityFactor("Tiny", QuantityUnit.Meter),
+            new QuantityFactor("TinyA", QuantityUnit.Meter),
             new QuantityFactor("HugeB", QuantityUnit.Meter)
         });
-
-        if (!overflowFirst.Equals(finiteFirst))
-            throw new InvalidOperationException($"Equivalent quantity factor permutations diverged: {overflowFirst:R} vs {finiteFirst:R}.");
+        if (!overflowFirst.Equals(overflowAvoided))
+            throw new InvalidOperationException($"Equivalent huge/tiny factor permutations diverged: {overflowFirst:R} vs {overflowAvoided:R}.");
         if (!double.IsFinite(overflowFirst) || overflowFirst <= 0d)
             throw new InvalidOperationException($"Expected a positive finite quantity result, got {overflowFirst:R}.");
 
