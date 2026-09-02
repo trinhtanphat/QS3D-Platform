@@ -226,6 +226,8 @@ public static class QuantityRuleEngine
         var result = ComposeFiniteProduct(mantissa, exponent);
         if (!Numeric.IsFinite(result))
             throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
+        if (result == 0d)
+            throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
         return result;
     }
 
