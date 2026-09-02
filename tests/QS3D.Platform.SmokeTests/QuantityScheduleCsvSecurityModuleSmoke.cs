@@ -21,6 +21,7 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
         var benign = WriteSingle("Wall-01", "WALL.AREA");
         if (!benign.Contains(",Wall-01,WALL.AREA,Area,12.5,m2", StringComparison.Ordinal))
             throw new InvalidOperationException("Benign quantity CSV fields changed unexpectedly.");
+        AssertCanonicalCrLf(benign);
 
         Console.WriteLine("PASS quantity schedule CSV spreadsheet safety");
     }
@@ -31,6 +32,20 @@ internal static class QuantityScheduleCsvSecurityModuleSmoke
         if (!csv.Contains("'" + elementName.Replace("\"", "\"\""), StringComparison.Ordinal) &&
             !csv.Contains("'" + code.Replace("\"", "\"\""), StringComparison.Ordinal))
             throw new InvalidOperationException($"CSV did not neutralize spreadsheet-active text for element '{elementName}' and code '{code}'.");
+        AssertCanonicalCrLf(csv);
+    }
+
+    private static void AssertCanonicalCrLf(string csv)
+    {
+        if (!csv.EndsWith("\r\n", StringComparison.Ordinal))
+            throw new InvalidOperationException("Quantity CSV must end with canonical CRLF.");
+        for (var index = 0; index < csv.Length; index++)
+        {
+            if (csv[index] == '\n' && (index == 0 || csv[index - 1] != '\r'))
+                throw new InvalidOperationException("Quantity CSV contains a non-canonical LF line ending.");
+            if (csv[index] == '\r' && (index + 1 >= csv.Length || csv[index + 1] != '\n'))
+                throw new InvalidOperationException("Quantity CSV contains a non-canonical CR line ending.");
+        }
     }
 
     private static string WriteSingle(string elementName, string code)
