@@ -152,7 +152,7 @@ public static class BoqProjector
                 NumberStyles.Float,
                 CultureInfo.InvariantCulture,
                 out var canonicalQuantity)
-            || (source != 0d && canonicalQuantity == 0m))
+            || (double)canonicalQuantity != source)
         {
             throw new OverflowException($"Quantity '{quantity.Code}' cannot be represented as decimal for cost projection.");
         }
