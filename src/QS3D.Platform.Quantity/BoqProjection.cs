@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace QS3D.Platform.Quantity;
 
 public readonly struct Money : IEquatable<Money>
@@ -22,7 +24,7 @@ public readonly struct Money : IEquatable<Money>
     }
     public static bool operator ==(Money left, Money right) => left.Equals(right);
     public static bool operator !=(Money left, Money right) => !left.Equals(right);
-    public override string ToString() => $"{Amount} {Currency}";
+    public override string ToString() => Amount.ToString(CultureInfo.InvariantCulture) + " " + Currency;
 }
 
 public sealed class UnitRate
