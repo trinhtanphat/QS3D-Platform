@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
@@ -35,7 +36,9 @@ public sealed class QuantityRuleDefinition
         if (!Enum.IsDefined(typeof(QuantityDimension), outputDimension)) throw new ArgumentOutOfRangeException(nameof(outputDimension));
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Quantity rule code must not be blank.", nameof(code));
         multiplier = Numeric.RequireNonNegativeFinite(multiplier, nameof(multiplier));
-        var copiedFactors = factors is null ? Array.Empty<QuantityFactor>() : factors.ToArray();
+        var copiedFactors = factors is null
+            ? Array.Empty<QuantityFactor>()
+            : QuantityRuleMaterializer.Materialize(factors, nameof(factors), "quantity rule factors");
         if (copiedFactors.Any(static factor => factor is null)) throw new ArgumentException("Quantity rule factors must not contain null entries.", nameof(factors));
 
         var inferred = InferDimension(copiedFactors);
@@ -111,7 +114,7 @@ public sealed class QuantityRuleCatalog
     public QuantityRuleCatalog(IEnumerable<QuantityRuleDefinition> rules)
     {
         if (rules is null) throw new ArgumentNullException(nameof(rules));
-        var copied = rules.ToArray();
+        var copied = QuantityRuleMaterializer.Materialize(rules, nameof(rules), "quantity rule catalog entries");
         if (copied.Any(static rule => rule is null)) throw new ArgumentException("Quantity rule catalog must not contain null entries.", nameof(rules));
 
         var unique = new HashSet<string>(StringComparer.Ordinal);
@@ -136,6 +139,54 @@ public sealed class QuantityRuleCatalog
     {
         if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
         return _rules.Where(rule => rule.ElementKind == kind).ToArray();
+    }
+}
+
+internal static class QuantityRuleMaterializer
+{
+    internal const int MaximumEntries = 100_000;
+
+    internal static T[] Materialize<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        int? advertisedCount = null;
+        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+
+        var copied = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
+        foreach (var item in source)
+        {
+            if (copied.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            copied.Add(item);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        return copied.ToArray();
+    }
+
+    private static void CaptureCount<TCollection>(
+        TCollection? collection,
+        Func<TCollection, int> getCount,
+        ref int? advertisedCount,
+        string parameterName,
+        string entryDescription)
+        where TCollection : class
+    {
+        if (collection is null) return;
+        var count = getCount(collection);
+        if (count < 0)
+            throw new ArgumentException($"{entryDescription} reported a negative Count.", parameterName);
+        if (count > MaximumEntries)
+            throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+        if (advertisedCount.HasValue && advertisedCount.Value != count)
+            throw new InvalidOperationException($"{entryDescription} expose conflicting Count values.");
+        advertisedCount = count;
     }
 }
 
