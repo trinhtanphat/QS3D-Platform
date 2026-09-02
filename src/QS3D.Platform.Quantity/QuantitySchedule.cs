@@ -24,6 +24,7 @@ public sealed class QuantityScheduleRow
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
         var copiedQuantities = quantities.ToArray();
         if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
+        EnsureUniqueQuantityKeys(copiedQuantities);
         ElementId = elementId;
         ElementName = elementName.Trim();
         ElementKind = elementKind;
@@ -44,6 +45,22 @@ public sealed class QuantityScheduleRow
     public FloorId? FloorId { get; }
     public ZoneId? ZoneId { get; }
     public IReadOnlyList<QuantitySummary> Quantities { get; }
+
+    private static void EnsureUniqueQuantityKeys(IEnumerable<QuantitySummary> quantities)
+    {
+        var dimensionsByCode = new Dictionary<string, HashSet<QuantityDimension>>(StringComparer.Ordinal);
+        foreach (var quantity in quantities)
+        {
+            if (!dimensionsByCode.TryGetValue(quantity.Code, out var dimensions))
+            {
+                dimensions = new HashSet<QuantityDimension>();
+                dimensionsByCode.Add(quantity.Code, dimensions);
+            }
+
+            if (!dimensions.Add(quantity.Quantity.Dimension))
+                throw new InvalidOperationException($"Duplicate quantity summary for '{quantity.Code}'/{quantity.Quantity.Dimension} in schedule row.");
+        }
+    }
 }
 
 public sealed class QuantitySchedule
@@ -53,6 +70,12 @@ public sealed class QuantitySchedule
         if (rows is null) throw new ArgumentNullException(nameof(rows));
         var copiedRows = rows.ToArray();
         if (copiedRows.Any(static row => row is null)) throw new ArgumentException("Schedule rows must not contain null entries.", nameof(rows));
+        var elementIds = new HashSet<ElementId>();
+        foreach (var row in copiedRows)
+        {
+            if (!elementIds.Add(row.ElementId))
+                throw new InvalidOperationException($"Duplicate schedule element {row.ElementId.Value:D}.");
+        }
         Rows = copiedRows.OrderBy(static row => row.ElementKind)
             .ThenBy(static row => row.ElementName, StringComparer.Ordinal)
             .ThenBy(static row => row.ElementId.Value)
