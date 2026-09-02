@@ -1,3 +1,4 @@
+using System.Collections;
 using QS3D.Platform.Domain;
 
 namespace QS3D.Platform.Persistence;
@@ -118,26 +119,91 @@ public sealed class ElementSnapshot
 
 internal static class SnapshotGuard
 {
+    internal const int MaxCollectionEntries = 100_000;
+
     public static T[] Copy<T>(IEnumerable<T> values, string parameterName) where T : class
     {
         if (values is null) throw new ArgumentNullException(parameterName);
-        var result = values.ToArray();
-        if (result.Any(static value => value is null)) throw new ArgumentException("Snapshot collection must not contain null entries.", parameterName);
-        return result;
+
+        var advertisedCount = ReadAdvertisedCount(values, parameterName);
+        if (advertisedCount.HasValue && advertisedCount.Value > MaxCollectionEntries)
+            throw new ArgumentException($"Snapshot collection exceeds the {MaxCollectionEntries} entry limit.", parameterName);
+
+        var result = advertisedCount.HasValue
+            ? new List<T>(advertisedCount.Value)
+            : new List<T>();
+
+        foreach (var value in values)
+        {
+            if (result.Count >= MaxCollectionEntries)
+                throw new ArgumentException($"Snapshot collection exceeds the {MaxCollectionEntries} entry limit.", parameterName);
+            if (value is null)
+                throw new ArgumentException("Snapshot collection must not contain null entries.", parameterName);
+            result.Add(value);
+        }
+
+        if (advertisedCount.HasValue && result.Count != advertisedCount.Value)
+            throw new ArgumentException("Snapshot collection Count does not match enumeration.", parameterName);
+
+        var finalCount = ReadAdvertisedCount(values, parameterName);
+        if (advertisedCount != finalCount || (finalCount.HasValue && finalCount.Value != result.Count))
+            throw new ArgumentException("Snapshot collection Count changed during materialization.", parameterName);
+
+        return result.ToArray();
     }
 
     public static IReadOnlyDictionary<string, string> CopyProperties(IReadOnlyDictionary<string, string>? properties)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
         if (properties is null) return result;
+
+        var advertisedCount = properties.Count;
+        ValidateCount(advertisedCount, nameof(properties));
+
         foreach (var pair in properties)
         {
+            if (result.Count >= MaxCollectionEntries)
+                throw new ArgumentException($"Snapshot property collection exceeds the {MaxCollectionEntries} entry limit.", nameof(properties));
             if (string.IsNullOrWhiteSpace(pair.Key)) throw new ArgumentException("Snapshot property key must not be blank.", nameof(properties));
             if (pair.Value is null) throw new ArgumentException("Snapshot property value must not be null.", nameof(properties));
             var key = pair.Key.Trim();
             if (result.ContainsKey(key)) throw new ArgumentException($"Duplicate snapshot property '{key}'.", nameof(properties));
             result.Add(key, pair.Value);
         }
+
+        if (result.Count != advertisedCount)
+            throw new ArgumentException("Snapshot property Count does not match enumeration.", nameof(properties));
+
+        var finalCount = properties.Count;
+        ValidateCount(finalCount, nameof(properties));
+        if (finalCount != advertisedCount || finalCount != result.Count)
+            throw new ArgumentException("Snapshot property Count changed during materialization.", nameof(properties));
+
         return result;
+    }
+
+    private static int? ReadAdvertisedCount<T>(IEnumerable<T> values, string parameterName)
+    {
+        int? count = null;
+        if (values is ICollection<T> collection) MergeCount(ref count, collection.Count, parameterName);
+        if (values is IReadOnlyCollection<T> readOnlyCollection) MergeCount(ref count, readOnlyCollection.Count, parameterName);
+        if (values is ICollection nonGenericCollection) MergeCount(ref count, nonGenericCollection.Count, parameterName);
+        return count;
+    }
+
+    private static void MergeCount(ref int? observed, int candidate, string parameterName)
+    {
+        ValidateCount(candidate, parameterName);
+        if (observed.HasValue && observed.Value != candidate)
+            throw new ArgumentException("Snapshot collection exposes conflicting Count values.", parameterName);
+        observed = candidate;
+    }
+
+    private static void ValidateCount(int count, string parameterName)
+    {
+        if (count < 0)
+            throw new ArgumentException("Snapshot collection Count must not be negative.", parameterName);
+        if (count > MaxCollectionEntries)
+            throw new ArgumentException($"Snapshot collection exceeds the {MaxCollectionEntries} entry limit.", parameterName);
     }
 }
