@@ -88,13 +88,13 @@ public sealed class QuantityScheduleRow
         var dimensionByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
         foreach (var quantity in quantities)
         {
-            if (!dimensionByCode.TryAdd(quantity.Code, quantity.Quantity.Dimension))
+            if (dimensionByCode.TryGetValue(quantity.Code, out var existingDimension))
             {
-                var existingDimension = dimensionByCode[quantity.Code];
                 if (existingDimension != quantity.Quantity.Dimension)
                     throw new InvalidOperationException($"Quantity code '{quantity.Code}' is declared with both {existingDimension} and {quantity.Quantity.Dimension} dimensions in schedule row.");
                 throw new InvalidOperationException($"Duplicate quantity summary for '{quantity.Code}'/{quantity.Quantity.Dimension} in schedule row.");
             }
+            dimensionByCode.Add(quantity.Code, quantity.Quantity.Dimension);
         }
     }
 }
