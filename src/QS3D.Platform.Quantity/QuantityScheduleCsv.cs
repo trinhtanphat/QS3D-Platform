@@ -10,6 +10,8 @@ public static class QuantityScheduleCsv
     public static string Write(QuantitySchedule schedule)
     {
         if (schedule is null) throw new ArgumentNullException(nameof(schedule));
+        EnsureOutputRecordCardinality(schedule);
+
         var output = new StringBuilder();
         output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit");
         output.Append(CsvLineEnding);
@@ -37,6 +39,18 @@ public static class QuantityScheduleCsv
             }
         }
         return output.ToString();
+    }
+
+    private static void EnsureOutputRecordCardinality(QuantitySchedule schedule)
+    {
+        var recordCount = 0;
+        foreach (var row in schedule.Rows)
+        {
+            var rowRecordCount = row.Quantities.Count == 0 ? 1 : row.Quantities.Count;
+            if (recordCount > QuantityScheduleMaterializer.MaximumEntries - rowRecordCount)
+                throw new InvalidOperationException($"CSV data records exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
+            recordCount += rowRecordCount;
+        }
     }
 
     private static string NeutralizeSpreadsheetActiveText(string value)
