@@ -85,17 +85,16 @@ public sealed class QuantityScheduleRow
 
     private static void EnsureUniqueQuantityKeys(IEnumerable<QuantitySummary> quantities)
     {
-        var dimensionsByCode = new Dictionary<string, HashSet<QuantityDimension>>(StringComparer.Ordinal);
+        var dimensionByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
         foreach (var quantity in quantities)
         {
-            if (!dimensionsByCode.TryGetValue(quantity.Code, out var dimensions))
+            if (!dimensionByCode.TryAdd(quantity.Code, quantity.Quantity.Dimension))
             {
-                dimensions = new HashSet<QuantityDimension>();
-                dimensionsByCode.Add(quantity.Code, dimensions);
-            }
-
-            if (!dimensions.Add(quantity.Quantity.Dimension))
+                var existingDimension = dimensionByCode[quantity.Code];
+                if (existingDimension != quantity.Quantity.Dimension)
+                    throw new InvalidOperationException($"Quantity code '{quantity.Code}' is declared with both {existingDimension} and {quantity.Quantity.Dimension} dimensions in schedule row.");
                 throw new InvalidOperationException($"Duplicate quantity summary for '{quantity.Code}'/{quantity.Quantity.Dimension} in schedule row.");
+            }
         }
     }
 }
