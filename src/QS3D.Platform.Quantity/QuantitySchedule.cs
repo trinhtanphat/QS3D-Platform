@@ -102,8 +102,10 @@ public static class QuantityScheduleProjector
         var factsByElement = new Dictionary<ElementId, List<QuantityFact>>();
         foreach (var fact in copiedFacts)
         {
-            if (!elements.ContainsKey(fact.ElementId))
+            if (!elements.TryGetValue(fact.ElementId, out var element))
                 throw new InvalidOperationException($"Quantity fact '{fact.Code}' references element {fact.ElementId.Value:D}, which is not in the project.");
+            if (fact.SourceReference != element.SourceReference)
+                throw new InvalidOperationException($"Quantity fact '{fact.Code}' source provenance does not match element {fact.ElementId.Value:D}.");
             if (!factsByElement.TryGetValue(fact.ElementId, out var bucket))
             {
                 bucket = new List<QuantityFact>();
