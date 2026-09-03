@@ -42,16 +42,11 @@ internal static class BoqCodeDimensionAffinityModuleSmoke
             new QuantitySummary("WALL.QTY", QuantityDimension.Length, 2d, 1, 1),
             new QuantitySummary("WALL.QTY", QuantityDimension.Area, 3d, 1, 1)
         };
-        var rates = new[]
-        {
-            new UnitRate("WALL.QTY", QuantityDimension.Length, 10m, "USD"),
-            new UnitRate("WALL.QTY", QuantityDimension.Area, 20m, "USD")
-        };
 
         ExpectInvalidOperation(
-            () => _ = BoqProjector.Project(quantities, rates, "USD"),
-            "Rate code 'WALL.QTY'",
-            "BOQ projector accepted same rate code in multiple dimensions before quantity validation",
+            () => _ = BoqProjector.Project(quantities, Array.Empty<UnitRate>(), "USD", requireRateForEveryQuantity: false),
+            "Quantity code 'WALL.QTY'",
+            "BOQ projector accepted same quantity code in multiple dimensions",
             failures);
     }
 
