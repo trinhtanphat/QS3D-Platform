@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Runtime.CompilerServices;
 using QS3D.Platform.Domain;
+using QS3D.Platform.Geometry;
 using QS3D.Platform.Quantity;
 
 internal static class QuantityAccumulatorGenerationStabilitySmoke
@@ -10,6 +11,7 @@ internal static class QuantityAccumulatorGenerationStabilitySmoke
     {
         SameCountReplacementIsRejected();
         SameCountReorderIsRejected();
+        SameCountProvenanceDriftIsRejected();
         StableCountedFactsRemainAccepted();
         StreamingFactsRemainSinglePassCompatible();
         Console.WriteLine("PASS quantity accumulator generation stability");
@@ -43,6 +45,25 @@ internal static class QuantityAccumulatorGenerationStabilitySmoke
             new[] { second, first });
 
         ExpectGenerationDrift(source, "same-count quantity fact reorder");
+    }
+
+    private static void SameCountProvenanceDriftIsRejected()
+    {
+        var element = ElementId.New();
+        var first = new QuantityFact(
+            element,
+            "WALL.AREA",
+            new QuantityValue(QuantityDimension.Area, 5d),
+            new CadReference(DrawingId.New(), new CadHandle("A")));
+        var second = new QuantityFact(
+            element,
+            "WALL.AREA",
+            new QuantityValue(QuantityDimension.Area, 5d),
+            new CadReference(DrawingId.New(), new CadHandle("B")));
+
+        ExpectGenerationDrift(
+            new SameCountDriftCollection<QuantityFact>(new[] { first }, new[] { second }),
+            "same-count quantity fact provenance drift");
     }
 
     private static void StableCountedFactsRemainAccepted()
