@@ -25,6 +25,7 @@ public sealed class QuantityScheduleRow
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
         var copiedQuantities = QuantityScheduleMaterializer.Materialize(quantities, nameof(quantities), "schedule quantities");
         if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
+        EnsureRowLocalSummaryAffinity(copiedQuantities);
         EnsureUniqueQuantityKeys(copiedQuantities);
         ElementId = elementId;
         ElementName = elementName.Trim();
@@ -47,6 +48,15 @@ public sealed class QuantityScheduleRow
     public FloorId? FloorId { get; }
     public ZoneId? ZoneId { get; }
     public IReadOnlyList<QuantitySummary> Quantities { get; }
+
+    private static void EnsureRowLocalSummaryAffinity(IEnumerable<QuantitySummary> quantities)
+    {
+        foreach (var quantity in quantities)
+        {
+            if (quantity.FactCount == 0 || quantity.ElementCount != 1)
+                throw new InvalidOperationException($"Schedule row quantity '{quantity.Code}'/{quantity.Quantity.Dimension} must be backed by facts from exactly one element.");
+        }
+    }
 
     private static void EnsureUniqueQuantityKeys(IEnumerable<QuantitySummary> quantities)
     {
