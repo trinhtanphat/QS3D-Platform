@@ -110,8 +110,10 @@ public sealed class QuantityRuleDefinition
 
 public sealed class QuantityRuleCatalog
 {
+    private static readonly IReadOnlyList<QuantityRuleDefinition> EmptyRules = Array.AsReadOnly(Array.Empty<QuantityRuleDefinition>());
     private readonly QuantityRuleDefinition[] _rules;
     private readonly IReadOnlyList<QuantityRuleDefinition> _rulesView;
+    private readonly IReadOnlyDictionary<SemanticElementKind, IReadOnlyList<QuantityRuleDefinition>> _rulesByKind;
 
     public QuantityRuleCatalog(IEnumerable<QuantityRuleDefinition> rules)
     {
@@ -134,6 +136,11 @@ public sealed class QuantityRuleCatalog
             .ThenBy(static rule => rule.Code, StringComparer.Ordinal)
             .ToArray();
         _rulesView = Array.AsReadOnly(_rules);
+        _rulesByKind = _rules
+            .GroupBy(static rule => rule.ElementKind)
+            .ToDictionary(
+                static group => group.Key,
+                static group => (IReadOnlyList<QuantityRuleDefinition>)Array.AsReadOnly(group.ToArray()));
     }
 
     public IReadOnlyList<QuantityRuleDefinition> Rules => _rulesView;
@@ -141,7 +148,7 @@ public sealed class QuantityRuleCatalog
     public IReadOnlyList<QuantityRuleDefinition> ForKind(SemanticElementKind kind)
     {
         if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
-        return Array.AsReadOnly(_rules.Where(rule => rule.ElementKind == kind).ToArray());
+        return _rulesByKind.TryGetValue(kind, out var rules) ? rules : EmptyRules;
     }
 }
 
