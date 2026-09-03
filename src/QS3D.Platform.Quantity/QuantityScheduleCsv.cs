@@ -13,7 +13,7 @@ public static class QuantityScheduleCsv
         EnsureOutputRecordCardinality(schedule);
 
         var output = new StringBuilder();
-        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount");
+        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount,SourceDrawingId,SourceHandle");
         output.Append(CsvLineEnding);
         foreach (var row in schedule.Rows.OrderBy(static row => row.ElementId.Value))
         {
@@ -27,7 +27,8 @@ public static class QuantityScheduleCsv
                 Append(output, string.Empty);
                 AppendProvenance(output, row);
                 Append(output, string.Empty);
-                Append(output, string.Empty, last: true);
+                Append(output, string.Empty);
+                AppendSourceProvenance(output, row);
                 continue;
             }
 
@@ -41,7 +42,8 @@ public static class QuantityScheduleCsv
                 Append(output, CanonicalSymbol(summary.Quantity.Dimension));
                 AppendProvenance(output, row);
                 Append(output, summary.FactCount.ToString(CultureInfo.InvariantCulture));
-                Append(output, summary.ElementCount.ToString(CultureInfo.InvariantCulture), last: true);
+                Append(output, summary.ElementCount.ToString(CultureInfo.InvariantCulture));
+                AppendSourceProvenance(output, row);
             }
         }
         return output.ToString();
@@ -62,6 +64,20 @@ public static class QuantityScheduleCsv
             row.ZoneId.HasValue
                 ? row.ZoneId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
                 : string.Empty);
+    }
+
+    private static void AppendSourceProvenance(StringBuilder output, QuantityScheduleRow row)
+    {
+        if (row.SourceReference.HasValue)
+        {
+            var source = row.SourceReference.Value;
+            Append(output, source.DrawingId.Value.ToString("D", CultureInfo.InvariantCulture));
+            Append(output, source.Handle.Value, last: true);
+            return;
+        }
+
+        Append(output, string.Empty);
+        Append(output, string.Empty, last: true);
     }
 
     private static void EnsureOutputRecordCardinality(QuantitySchedule schedule)

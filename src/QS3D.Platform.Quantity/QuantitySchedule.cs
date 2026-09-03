@@ -14,6 +14,20 @@ public sealed class QuantityScheduleRow
         FloorId? floorId,
         ZoneId? zoneId,
         IEnumerable<QuantitySummary> quantities)
+        : this(elementId, elementName, elementKind, familyId, familyName, floorId, zoneId, quantities, null)
+    {
+    }
+
+    public QuantityScheduleRow(
+        ElementId elementId,
+        string elementName,
+        SemanticElementKind elementKind,
+        FamilyId familyId,
+        string familyName,
+        FloorId? floorId,
+        ZoneId? zoneId,
+        IEnumerable<QuantitySummary> quantities,
+        CadReference? sourceReference)
     {
         if (elementId.Value == Guid.Empty) throw new ArgumentException("Element ID must not be empty.", nameof(elementId));
         if (elementKind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), elementKind)) throw new ArgumentOutOfRangeException(nameof(elementKind));
@@ -22,6 +36,7 @@ public sealed class QuantityScheduleRow
         if (zoneId.HasValue && zoneId.Value.Value == Guid.Empty) throw new ArgumentException("Zone ID must not be empty when supplied.", nameof(zoneId));
         if (string.IsNullOrWhiteSpace(elementName)) throw new ArgumentException("Element name must not be blank.", nameof(elementName));
         if (string.IsNullOrWhiteSpace(familyName)) throw new ArgumentException("Family name must not be blank.", nameof(familyName));
+        if (sourceReference.HasValue) ValidateSourceReference(sourceReference.Value, nameof(sourceReference));
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
         var copiedQuantities = QuantityScheduleMaterializer.Materialize(quantities, nameof(quantities), "schedule quantities");
         if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
@@ -34,6 +49,7 @@ public sealed class QuantityScheduleRow
         FamilyName = familyName.Trim();
         FloorId = floorId;
         ZoneId = zoneId;
+        SourceReference = sourceReference;
         var orderedQuantities = copiedQuantities.OrderBy(static quantity => quantity.Code, StringComparer.Ordinal)
             .ThenBy(static quantity => quantity.Quantity.Dimension)
             .ToArray();
@@ -47,7 +63,16 @@ public sealed class QuantityScheduleRow
     public string FamilyName { get; }
     public FloorId? FloorId { get; }
     public ZoneId? ZoneId { get; }
+    public CadReference? SourceReference { get; }
     public IReadOnlyList<QuantitySummary> Quantities { get; }
+
+    private static void ValidateSourceReference(CadReference sourceReference, string parameterName)
+    {
+        if (sourceReference.DrawingId.Value == Guid.Empty)
+            throw new ArgumentException("Source drawing ID must not be empty when supplied.", parameterName);
+        if (string.IsNullOrWhiteSpace(sourceReference.Handle.Value))
+            throw new ArgumentException("Source CAD handle must not be empty when supplied.", parameterName);
+    }
 
     private static void EnsureRowLocalSummaryAffinity(IEnumerable<QuantitySummary> quantities)
     {
@@ -150,7 +175,8 @@ public static class QuantityScheduleProjector
                 family.Name,
                 element.FloorId,
                 element.ZoneId,
-                summaries));
+                summaries,
+                element.SourceReference));
         }
 
         return new QuantitySchedule(rows);

@@ -17,12 +17,12 @@ internal static class QuantityScheduleCsvSummaryEvidenceFidelityModuleSmoke
         if (StringComparer.Ordinal.Equals(oneFactCsv, twoFactCsv))
             throw new InvalidOperationException("Quantity schedule CSV collapsed distinct summary evidence cardinalities to identical output.");
 
-        var expectedHeader = "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount\r\n";
+        var expectedHeader = "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount,SourceDrawingId,SourceHandle\r\n";
         if (!oneFactCsv.StartsWith(expectedHeader, StringComparison.Ordinal))
-            throw new InvalidOperationException("Quantity schedule CSV did not append summary evidence columns after the existing compatibility prefix.");
-        if (!oneFactCsv.Contains(",1,1\r\n", StringComparison.Ordinal))
+            throw new InvalidOperationException("Quantity schedule CSV did not preserve summary evidence columns before appended source provenance.");
+        if (!oneFactCsv.Contains(",1,1,,\r\n", StringComparison.Ordinal))
             throw new InvalidOperationException("Quantity schedule CSV did not preserve one-fact summary evidence cardinality.");
-        if (!twoFactCsv.Contains(",2,1\r\n", StringComparison.Ordinal))
+        if (!twoFactCsv.Contains(",2,1,,\r\n", StringComparison.Ordinal))
             throw new InvalidOperationException("Quantity schedule CSV did not preserve two-fact summary evidence cardinality.");
 
         var emptyRow = new QuantityScheduleRow(
@@ -36,8 +36,8 @@ internal static class QuantityScheduleCsvSummaryEvidenceFidelityModuleSmoke
             Array.Empty<QuantitySummary>());
         var emptyCsv = QuantityScheduleCsv.Write(new QuantitySchedule(new[] { emptyRow }));
         var emptyLines = emptyCsv.Split(new[] { "\r\n" }, StringSplitOptions.None);
-        if (!emptyLines[1].EndsWith(",,", StringComparison.Ordinal))
-            throw new InvalidOperationException("Quantity schedule CSV must leave summary evidence fields blank for an intentionally empty row.");
+        if (!emptyLines[1].EndsWith(",,,,", StringComparison.Ordinal))
+            throw new InvalidOperationException("Quantity schedule CSV must leave summary evidence and source provenance blank for a source-less empty row.");
 
         Console.WriteLine("PASS quantity schedule CSV summary evidence fidelity");
     }
