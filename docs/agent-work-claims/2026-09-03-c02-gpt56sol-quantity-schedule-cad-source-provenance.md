@@ -1,8 +1,8 @@
 # C02 reservation — quantity schedule CAD source provenance fidelity
 
-Status: ACTIVE
+Status: COMPLETED
 Lane-Key: issue-195
-Issue: #195
+Issue: #195 (closed/completed)
 Canonical owner/session: account:trinhtanphat|session:gpt56sol-c02-20260903-schedule-cad-source
 Canonical carrier: agent/c02-gpt56sol-20260903-schedule-cad-source/issue-195-schedule-cad-source
 Ownership-Key: quantity.schedule.cad-source-provenance-fidelity-v1
@@ -19,20 +19,17 @@ Expected-Paths:
 - tests/QS3D.Platform.SmokeTests/QuantityScheduleCsvEmptyRowFidelityModuleSmoke.cs
 - docs/agent-work-claims/2026-09-03-c02-gpt56sol-quantity-schedule-cad-source-provenance.md
 
-## Reserved scope
-Preserve the already-validated nullable semantic-element `CadReference` through `QuantityScheduleRow` and canonical CSV export, without reordering any existing CSV columns.
+## Completion evidence
+- Claim-visible merge: `67414f7a6d2c4d38e2192030d57f4722b7a979c6` via PR #196; claim exact-head CI `33729526860` SUCCESS.
+- Regression-only head: `b0861144e5bff8a2dc6c6fa09cfd7ea51c7741bb`; RED Platform CI `33729763075` FAILURE.
+- Production exact head: `508a116f4080eef644ce86323c3816db2d40af37`; exact-head Platform CI `33730082732` SUCCESS.
+- Production PR: #197.
+- Production merge commit: `8a2b86a9a57bc44f7e8b6157cc6ffa42d523c511`.
+- Exact-main Platform CI: `33730153410` SUCCESS on `8a2b86a9a57bc44f7e8b6157cc6ffa42d523c511`.
+- Issue #195: closed/completed.
 
-## Excluded scope
-No Domain/Persistence implementation changes, Workspace UI, MCP runtime/transport, installer/release, native CAD behavior or QS3D-BricsCAD submodule pointer mutation.
+## Root cause and fix
+The schedule projector enforced exact fact-to-element `CadReference` affinity but discarded that validated drawing/handle when constructing schedule rows. PR #197 preserves nullable source provenance on `QuantityScheduleRow`, retains the legacy 8-parameter constructor as a real compatibility overload, adds a source-aware overload with fail-closed validation, propagates source for populated and include-empty rows, and appends `SourceDrawingId,SourceHandle` after the prior thirteen CSV columns.
 
-## Validation plan
-- deterministic RED proving source-backed projected schedule/export loses source drawing/handle today;
-- direct-row backward compatibility via optional trailing source argument;
-- null source fidelity and non-null deterministic DrawingId/handle export;
-- preserve source-affinity fail-closed behavior from #108/#113;
-- existing CSV provenance/evidence/empty/security/cardinality smokes;
-- full authoritative Platform CI, fresh exact-head and exact-main evidence;
-- self-review nullable provenance, constructor validation, positional compatibility, deterministic formatting and evidence immutability.
-
-## Completion condition
-Production carrier merged, exact-main Platform CI green, issue closed/completed and this reservation terminalized.
+## Reservation terminalization
+Production is merged and fresh exact-main CI is green. This claim is terminal and no longer reserves the listed paths.
