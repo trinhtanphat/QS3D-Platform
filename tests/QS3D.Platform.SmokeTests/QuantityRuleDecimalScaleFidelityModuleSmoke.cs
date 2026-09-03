@@ -25,6 +25,12 @@ internal static class QuantityRuleDecimalScaleFidelityModuleSmoke
         Set(element, "CM3", 5.862813159411555e86d);
         Set(element, "G", 1.836449551960462e85d);
         Set(element, "T", 1.23456789012345d);
+        Set(element, "ONE", 1d);
+        Set(element, "A", 1.5547907049576155d);
+        Set(element, "B", 1.8252483949208353d);
+        Set(element, "C", 1.0188123428151963d);
+        Set(element, "MASS", 1e308d);
+        Set(element, "COMP", 1e-308d);
 
         var project = new SemanticProject(
             new ProjectId(Guid.Parse("3047bf5a-ea56-41c7-b35f-577b11d525ab")),
@@ -49,6 +55,39 @@ internal static class QuantityRuleDecimalScaleFidelityModuleSmoke
             QuantityDimension.Mass,
             BitConverter.DoubleToInt64Bits(tonneExpected));
 
+        AssertProductBits(
+            project,
+            QuantityDimension.Length,
+            0x3F50624DD2F1A9FCL,
+            new QuantityFactor("ONE", QuantityUnit.Millimeter));
+        AssertProductBits(
+            project,
+            QuantityDimension.Area,
+            0x43314DD27CA2DAFAL,
+            new QuantityFactor("MM", QuantityUnit.Millimeter, exponent: 2));
+
+        var permutations = new[]
+        {
+            new[] { "A", "B", "C" },
+            new[] { "C", "A", "B" },
+            new[] { "B", "C", "A" }
+        };
+        foreach (var permutation in permutations)
+        {
+            AssertProductBits(
+                project,
+                QuantityDimension.Volume,
+                0x3E28D5F64867480BL,
+                permutation.Select(name => new QuantityFactor(name, QuantityUnit.Millimeter)).ToArray());
+        }
+
+        AssertProductBits(
+            project,
+            QuantityDimension.Mass,
+            0x408F3FFFFFFFFFFFL,
+            new QuantityFactor("MASS", QuantityUnit.Tonne),
+            new QuantityFactor("COMP", QuantityUnit.Each));
+
         Console.WriteLine("PASS quantity rule exact decimal-scale fidelity");
     }
 
@@ -62,24 +101,49 @@ internal static class QuantityRuleDecimalScaleFidelityModuleSmoke
         QuantityDimension dimension,
         long expectedBits)
     {
-        var rule = new QuantityRuleDefinition(
-            SemanticElementKind.Wall,
-            "SCALE." + propertyName,
+        var actual = Evaluate(
+            project,
             dimension,
-            new[] { new QuantityFactor(propertyName, unit) });
-        var facts = QuantityRuleEngine.Evaluate(project, new QuantityRuleCatalog(new[] { rule }));
-        if (facts.Count != 1)
-            throw new InvalidOperationException($"Expected one quantity fact for {propertyName}, got {facts.Count}.");
-
-        var actual = facts[0].Quantity.Value;
-        var actualBits = BitConverter.DoubleToInt64Bits(actual);
-        if (actualBits != expectedBits)
-            throw new InvalidOperationException(
-                $"Rule unit scaling for {unit} rounded to {actual:R} (0x{actualBits:X16}); expected exact decimal-scale bits 0x{expectedBits:X16}.");
+            new QuantityFactor(propertyName, unit));
+        AssertBits(actual, expectedBits, $"Rule unit scaling for {unit}");
 
         var raw = double.Parse(project.Elements.Single().Properties[propertyName], NumberStyles.Float, CultureInfo.InvariantCulture);
         var standalone = QuantityUnits.ToCanonical(raw, unit);
         if (BitConverter.DoubleToInt64Bits(standalone) != expectedBits)
             throw new InvalidOperationException($"Standalone QuantityUnits oracle for {unit} no longer matches the pinned exact-scale fixture.");
+    }
+
+    private static void AssertProductBits(
+        SemanticProject project,
+        QuantityDimension dimension,
+        long expectedBits,
+        params QuantityFactor[] factors)
+    {
+        var actual = Evaluate(project, dimension, factors);
+        AssertBits(actual, expectedBits, "Quantity rule exact decimal rational product");
+    }
+
+    private static double Evaluate(
+        SemanticProject project,
+        QuantityDimension dimension,
+        params QuantityFactor[] factors)
+    {
+        var rule = new QuantityRuleDefinition(
+            SemanticElementKind.Wall,
+            "SCALE.PRODUCT",
+            dimension,
+            factors);
+        var facts = QuantityRuleEngine.Evaluate(project, new QuantityRuleCatalog(new[] { rule }));
+        if (facts.Count != 1 || facts[0].ElementId != project.Elements.Single().Id)
+            throw new InvalidOperationException("Quantity rule decimal-scale regression corrupted output fact affinity.");
+        return facts[0].Quantity.Value;
+    }
+
+    private static void AssertBits(double actual, long expectedBits, string scenario)
+    {
+        var actualBits = BitConverter.DoubleToInt64Bits(actual);
+        if (actualBits != expectedBits)
+            throw new InvalidOperationException(
+                $"{scenario} rounded to {actual:R} (0x{actualBits:X16}); expected bits 0x{expectedBits:X16}.");
     }
 }
