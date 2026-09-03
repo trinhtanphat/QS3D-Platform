@@ -12,6 +12,8 @@ internal static class QuantityAccumulatorHighDynamicRangeRoundingModuleSmoke
         VerifyOneUlpHighDynamicRangeRegression();
         VerifyClassicRecoverableContribution();
         VerifyPermutationDeterminism();
+        VerifySubnormalAndNormalBoundary();
+        VerifyRoundToNearestEven();
         VerifyTrueOverflowRejected();
         Console.WriteLine("PASS quantity accumulator high-dynamic-range rounding");
     }
@@ -48,6 +50,33 @@ internal static class QuantityAccumulatorHighDynamicRangeRoundingModuleSmoke
             if (actual != expected)
                 throw new InvalidOperationException($"Quantity accumulator is not deterministic/correct across input permutations: {actual:R} != {expected:R}.");
         }
+    }
+
+    private static void VerifySubnormalAndNormalBoundary()
+    {
+        var twiceEpsilon = Summarize(double.Epsilon, double.Epsilon);
+        var expectedTwiceEpsilon = BitConverter.Int64BitsToDouble(2L);
+        if (twiceEpsilon != expectedTwiceEpsilon)
+            throw new InvalidOperationException("Quantity accumulator corrupted an exactly representable subnormal sum.");
+
+        var maximumSubnormal = BitConverter.Int64BitsToDouble(0x000fffffffffffffL);
+        var minimumNormal = BitConverter.Int64BitsToDouble(0x0010000000000000L);
+        var crossedBoundary = Summarize(maximumSubnormal, double.Epsilon);
+        if (crossedBoundary != minimumNormal)
+            throw new InvalidOperationException("Quantity accumulator corrupted the maximum-subnormal to minimum-normal boundary.");
+    }
+
+    private static void VerifyRoundToNearestEven()
+    {
+        var halfUlpAtOne = Math.Pow(2d, -53d);
+        var tieDown = Summarize(1d, halfUlpAtOne);
+        if (tieDown != 1d)
+            throw new InvalidOperationException($"Quantity accumulator did not round the even lower significand on a half-ULP tie: {tieDown:R}.");
+
+        var tieUp = Summarize(1d, halfUlpAtOne, halfUlpAtOne, halfUlpAtOne);
+        var expectedTieUp = BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(1d) + 2L);
+        if (tieUp != expectedTieUp)
+            throw new InvalidOperationException($"Quantity accumulator did not round to the even upper significand on a half-ULP tie: {tieUp:R} != {expectedTieUp:R}.");
     }
 
     private static void VerifyTrueOverflowRejected()
