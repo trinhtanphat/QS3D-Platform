@@ -9,11 +9,12 @@
 - Lane-Key: `c01-domain-element-location-affinity-20260903`
 
 ## Reserved scope
-C01 Domain project admission semantics for `SemanticProject.AddElement`: non-null FloorId/ZoneId must belong to the same project before element insertion.
+C01 Domain project admission semantics for `SemanticProject.AddElement`: non-null FloorId/ZoneId must belong to the same project before element insertion. Direct deterministic smoke coverage may be adjusted where an existing test intentionally constructs stale location state before admission; such coverage must preserve the health-analyzer behavior by introducing drift only after a valid add.
 
 ## Expected surfaces
 - `src/QS3D.Platform.Domain/SemanticModel.cs`
 - `tests/QS3D.Platform.SmokeTests/SemanticProjectLocationAffinityModuleSmoke.cs`
+- `tests/QS3D.Platform.SmokeTests/Program.cs`
 - this claim file
 
 ## Excluded scope
@@ -23,6 +24,7 @@ Persistence schema/serialization, Quantity, BricsCAD UI/runtime, MCP, release/in
 - deterministic regression proving missing floor and missing zone are rejected;
 - prove rejected admission does not partially insert the element;
 - preserve null location and existing family/kind admission behavior;
+- preserve SemanticHealthAnalyzer stale-reference coverage by mutating location only after successful project admission;
 - full authoritative Platform CI on exact candidate head.
 
 ## Completion condition
