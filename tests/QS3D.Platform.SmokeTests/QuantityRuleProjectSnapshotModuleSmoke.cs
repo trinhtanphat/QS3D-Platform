@@ -39,7 +39,7 @@ internal static class QuantityRuleProjectSnapshotModuleSmoke
         });
 
         var facts = QuantityRuleEngine.Evaluate(project, catalog);
-        if (facts.Count != 1 || facts[0].Value.Value != 2d)
+        if (facts.Count != 1 || facts[0].Quantity.Value != 2d)
             throw new InvalidOperationException("Quantity rule snapshot regression produced an unexpected quantity value.");
         if (facts[0].SourceReference != sourceBefore)
             throw new InvalidOperationException(
