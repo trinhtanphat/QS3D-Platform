@@ -8,6 +8,8 @@ namespace QS3D.Platform.SmokeTests;
 internal static class QuantityScheduleProjectRowAdmissionModuleSmoke
 {
     private const int MaximumEntries = 100_000;
+    // A rejected request may allocate diagnostics/delegate state, but must not allocate the full
+    // 100,001-entry project snapshot. Keep this comfortably above ordinary rejection overhead.
     private const long MaximumRejectedRequestAllocationBytes = 1_000_000;
 
     [ModuleInitializer]
