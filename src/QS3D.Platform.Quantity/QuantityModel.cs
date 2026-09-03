@@ -124,6 +124,7 @@ public static class QuantityAccumulator
         var copiedFacts = MaterializeFacts(facts);
         if (copiedFacts.Any(static fact => fact is null))
             throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
+        ValidateSourceProvenance(copiedFacts);
 
         return copiedFacts
             .GroupBy(static fact => new QuantityKey(fact.Code, fact.Quantity.Dimension), QuantityKeyComparer.Instance)
@@ -177,6 +178,23 @@ public static class QuantityAccumulator
         if (advertisedCount.HasValue && advertisedCount.Value != count)
             throw new InvalidOperationException("Quantity facts expose conflicting Count values.");
         advertisedCount = count;
+    }
+
+    private static void ValidateSourceProvenance(IEnumerable<QuantityFact> facts)
+    {
+        var sourceByElement = new Dictionary<ElementId, CadReference?>();
+        foreach (var fact in facts)
+        {
+            if (sourceByElement.TryGetValue(fact.ElementId, out var existingSource))
+            {
+                if (existingSource != fact.SourceReference)
+                    throw new InvalidOperationException($"Quantity facts for element {fact.ElementId.Value:D} contain conflicting CAD provenance across quantity keys.");
+            }
+            else
+            {
+                sourceByElement.Add(fact.ElementId, fact.SourceReference);
+            }
+        }
     }
 
     private static QuantitySummary CreateSummary(QuantityKey key, IEnumerable<QuantityFact> facts)
