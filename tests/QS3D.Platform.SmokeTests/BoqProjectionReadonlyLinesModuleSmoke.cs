@@ -28,24 +28,30 @@ internal static class BoqProjectionReadonlyLinesModuleSmoke
         if (!ReferenceEquals(projection.Lines[0], first) || !ReferenceEquals(projection.Lines[1], second))
             throw new InvalidOperationException("BOQ projection ordering or line identity changed.");
 
-        AssertReadOnlyView(projection.Lines);
+        var replacement = new BoqLine(
+            "A.LENGTH",
+            new QuantityValue(QuantityDimension.Length, 4d),
+            1,
+            5m,
+            new Money(20m, "USD"));
+        AssertReadOnlyView(projection, replacement);
 
         Console.WriteLine("PASS BOQ projection lines cannot mutate after commercial total validation");
     }
 
-    private static void AssertReadOnlyView(IReadOnlyList<BoqLine> lines)
+    private static void AssertReadOnlyView(BoqProjection projection, BoqLine replacement)
     {
-        if (lines is BoqLine[])
-            throw new InvalidOperationException("BoqProjection.Lines exposes its validated backing array.");
-
-        if (lines is IList<BoqLine> mutableView)
+        if (projection.Lines is BoqLine[] array)
         {
-            var replacement = new BoqLine(
-                "A.LENGTH",
-                new QuantityValue(QuantityDimension.Length, 4d),
-                1,
-                5m,
-                new Money(20m, "USD"));
+            array[0] = replacement;
+            if (!ReferenceEquals(projection.Lines[0], replacement)
+                || projection.Lines.Sum(static line => line.Total.Amount) == projection.Total.Amount)
+                throw new InvalidOperationException("BOQ backing-array mutation reproduction did not create the expected stale commercial total.");
+            throw new InvalidOperationException("BoqProjection.Lines exposes its validated backing array and permits stale aggregate totals.");
+        }
+
+        if (projection.Lines is IList<BoqLine> mutableView)
+        {
             try
             {
                 mutableView[0] = replacement;
