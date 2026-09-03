@@ -15,7 +15,7 @@ internal static class QuantityReadonlyCollectionExposureModuleSmoke
         var row = new QuantityScheduleRow(
             ElementId.New(),
             "Wall",
-            SemanticElementKind.ArchitecturalWall,
+            SemanticElementKind.Wall,
             FamilyId.New(),
             "Wall Family",
             null,
@@ -33,7 +33,7 @@ internal static class QuantityReadonlyCollectionExposureModuleSmoke
 
         var factor = new QuantityFactor("Length", QuantityUnit.Meter);
         var rule = new QuantityRuleDefinition(
-            SemanticElementKind.ArchitecturalWall,
+            SemanticElementKind.Wall,
             "WALL.LENGTH",
             QuantityDimension.Length,
             new[] { factor });
@@ -43,9 +43,9 @@ internal static class QuantityReadonlyCollectionExposureModuleSmoke
 
         var catalog = new QuantityRuleCatalog(new[] { rule });
         AssertReadOnlyView(catalog.Rules, "QuantityRuleCatalog.Rules");
-        AssertReadOnlyView(catalog.ForKind(SemanticElementKind.ArchitecturalWall), "QuantityRuleCatalog.ForKind");
+        AssertReadOnlyView(catalog.ForKind(SemanticElementKind.Wall), "QuantityRuleCatalog.ForKind");
         if (!ReferenceEquals(catalog.Rules[0], rule)
-            || !ReferenceEquals(catalog.ForKind(SemanticElementKind.ArchitecturalWall)[0], rule))
+            || !ReferenceEquals(catalog.ForKind(SemanticElementKind.Wall)[0], rule))
             throw new InvalidOperationException("QuantityRuleCatalog ordering or identity changed.");
 
         Console.WriteLine("PASS quantity validated collections expose immutable read-only views");
