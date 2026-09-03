@@ -112,6 +112,7 @@ public sealed class QuantitySchedule
             if (!elementIds.Add(row.ElementId))
                 throw new InvalidOperationException($"Duplicate schedule element {row.ElementId.Value:D}.");
         }
+        EnsureGlobalQuantityCodeDimensionAffinity(copiedRows);
         var orderedRows = copiedRows.OrderBy(static row => row.ElementKind)
             .ThenBy(static row => row.ElementName, StringComparer.Ordinal)
             .ThenBy(static row => row.ElementId.Value)
@@ -120,6 +121,26 @@ public sealed class QuantitySchedule
     }
 
     public IReadOnlyList<QuantityScheduleRow> Rows { get; }
+
+    private static void EnsureGlobalQuantityCodeDimensionAffinity(IEnumerable<QuantityScheduleRow> rows)
+    {
+        var dimensionsByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            foreach (var quantity in row.Quantities)
+            {
+                if (dimensionsByCode.TryGetValue(quantity.Code, out var existingDimension))
+                {
+                    if (existingDimension != quantity.Quantity.Dimension)
+                        throw new InvalidOperationException($"Quantity code '{quantity.Code}' is declared with both {existingDimension} and {quantity.Quantity.Dimension} dimensions across schedule rows.");
+                }
+                else
+                {
+                    dimensionsByCode.Add(quantity.Code, quantity.Quantity.Dimension);
+                }
+            }
+        }
+    }
 }
 
 public static class QuantityScheduleProjector
