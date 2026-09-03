@@ -241,8 +241,9 @@ public static class QuantityRuleEngine
         out bool missingInput)
     {
         missingInput = false;
-        var productFactors = new List<double>(1 + rule.Factors.Count * 6);
+        var productFactors = new List<double>(1 + rule.Factors.Count * 3);
         productFactors.Add(rule.Multiplier);
+        long decimalScalePower = 0;
 
         foreach (var factor in rule.Factors)
         {
@@ -259,18 +260,43 @@ public static class QuantityRuleEngine
             if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) || !Numeric.IsFinite(parsed) || parsed < 0d)
                 throw new InvalidOperationException($"Element '{element.Name}' property '{factor.PropertyName}' must be a non-negative finite invariant-culture number for quantity rule '{rule.Code}'.");
 
-            var canonicalScale = QuantityUnits.ToCanonical(1d, factor.Unit);
+            var unitScalePower = DecimalScalePowerToCanonical(factor.Unit);
             for (var i = 0; i < factor.Exponent; i++)
             {
                 productFactors.Add(parsed);
-                productFactors.Add(canonicalScale);
+                decimalScalePower += unitScalePower;
             }
         }
 
-        return MultiplyCanonicalFactors(productFactors, rule.Code, element.Name);
+        return MultiplyCanonicalFactors(productFactors, decimalScalePower, rule.Code, element.Name);
     }
 
-    private static double MultiplyCanonicalFactors(List<double> factors, string ruleCode, string elementName)
+    private static int DecimalScalePowerToCanonical(QuantityUnit unit)
+    {
+        switch (unit)
+        {
+            case QuantityUnit.Each: return 0;
+            case QuantityUnit.Millimeter: return -3;
+            case QuantityUnit.Centimeter: return -2;
+            case QuantityUnit.Meter: return 0;
+            case QuantityUnit.SquareMillimeter: return -6;
+            case QuantityUnit.SquareCentimeter: return -4;
+            case QuantityUnit.SquareMeter: return 0;
+            case QuantityUnit.CubicMillimeter: return -9;
+            case QuantityUnit.CubicCentimeter: return -6;
+            case QuantityUnit.CubicMeter: return 0;
+            case QuantityUnit.Gram: return -3;
+            case QuantityUnit.Kilogram: return 0;
+            case QuantityUnit.Tonne: return 3;
+            default: throw new ArgumentOutOfRangeException(nameof(unit), unit, "Unsupported quantity unit.");
+        }
+    }
+
+    private static double MultiplyCanonicalFactors(
+        List<double> factors,
+        long decimalScalePower,
+        string ruleCode,
+        string elementName)
     {
         if (factors.Any(static factor => factor == 0d))
             return 0d;
@@ -285,11 +311,32 @@ public static class QuantityRuleEngine
             binaryExponent += exponent;
         }
 
-        if (significands.Count == 0)
-            return 1d;
+        var exactNumerator = significands.Count == 0
+            ? BigInteger.One
+            : MultiplySignificandsBalanced(significands, 0, significands.Count);
+        var exactDenominator = BigInteger.One;
 
-        var exactSignificand = MultiplySignificandsBalanced(significands, 0, significands.Count);
-        return RoundExactBinaryProduct(exactSignificand, binaryExponent, ruleCode, elementName);
+        if (decimalScalePower > 0L)
+        {
+            var power = CheckedFivePower(decimalScalePower);
+            exactNumerator *= BigInteger.Pow(5, power);
+            binaryExponent += decimalScalePower;
+        }
+        else if (decimalScalePower < 0L)
+        {
+            var power = CheckedFivePower(-decimalScalePower);
+            exactDenominator = BigInteger.Pow(5, power);
+            binaryExponent += decimalScalePower;
+        }
+
+        return RoundExactRationalProduct(exactNumerator, exactDenominator, binaryExponent, ruleCode, elementName);
+    }
+
+    private static int CheckedFivePower(long power)
+    {
+        if (power < 0L || power > int.MaxValue)
+            throw new InvalidOperationException("Quantity rule decimal scale exceeded the supported exact-rational exponent range.");
+        return (int)power;
     }
 
     private static void DecomposeExactPositiveFinite(double value, out ulong significand, out int binaryExponent)
@@ -326,28 +373,25 @@ public static class QuantityRuleEngine
         return left * right;
     }
 
-    private static double RoundExactBinaryProduct(
-        BigInteger exactSignificand,
+    private static double RoundExactRationalProduct(
+        BigInteger numerator,
+        BigInteger denominator,
         long binaryExponent,
         string ruleCode,
         string elementName)
     {
-        var bitLength = GetPositiveBitLength(exactSignificand);
-        var highestBinaryExponent = binaryExponent + bitLength - 1L;
+        if (numerator.Sign <= 0 || denominator.Sign <= 0)
+            throw new InvalidOperationException("Quantity rule exact rational product must be positive before rounding.");
+
+        var rationalExponent = FloorLog2Ratio(numerator, denominator);
+        var highestBinaryExponent = binaryExponent + rationalExponent;
+
+        if (highestBinaryExponent < -1075L)
+            throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
 
         if (highestBinaryExponent < -1022L)
         {
-            var unitShift = binaryExponent + 1074L;
-            BigInteger roundedUnits;
-            if (unitShift >= 0L)
-            {
-                roundedUnits = exactSignificand << checked((int)unitShift);
-            }
-            else
-            {
-                roundedUnits = RoundRightToNearestEven(exactSignificand, checked((int)-unitShift));
-            }
-
+            var roundedUnits = RoundRatioByPowerOfTwo(numerator, denominator, binaryExponent + 1074L);
             if (roundedUnits.IsZero)
                 throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
             if (roundedUnits > new BigInteger(HiddenBit))
@@ -355,18 +399,21 @@ public static class QuantityRuleEngine
             return BitConverter.Int64BitsToDouble((long)(ulong)roundedUnits);
         }
 
-        var significandShift = bitLength - 53;
-        BigInteger roundedSignificand;
-        if (significandShift > 0)
-            roundedSignificand = RoundRightToNearestEven(exactSignificand, significandShift);
-        else
-            roundedSignificand = exactSignificand << -significandShift;
+        var representedExponent = highestBinaryExponent - 52L;
+        var roundedSignificand = RoundRatioByPowerOfTwo(
+            numerator,
+            denominator,
+            binaryExponent - representedExponent);
 
-        var representedExponent = binaryExponent + significandShift;
-        if (roundedSignificand == (BigInteger.One << 53))
+        var twiceHiddenBit = BigInteger.One << 53;
+        if (roundedSignificand == twiceHiddenBit)
         {
             roundedSignificand >>= 1;
             representedExponent++;
+        }
+        else if (roundedSignificand < new BigInteger(HiddenBit) || roundedSignificand > twiceHiddenBit)
+        {
+            throw new InvalidOperationException("Quantity rule exact rational rounding produced an invalid normal significand.");
         }
 
         var rawExponent = representedExponent + 1075L;
@@ -384,25 +431,44 @@ public static class QuantityRuleEngine
         return result;
     }
 
-    private static BigInteger RoundRightToNearestEven(BigInteger value, int shift)
+    private static int FloorLog2Ratio(BigInteger numerator, BigInteger denominator)
     {
-        if (shift <= 0) return value << -shift;
+        var numeratorBits = GetPositiveBitLength(numerator);
+        var denominatorBits = GetPositiveBitLength(denominator);
+        var candidate = numeratorBits - denominatorBits;
 
-        var bitLength = GetPositiveBitLength(value);
-        if (shift > bitLength)
-            return BigInteger.Zero;
-        if (shift == bitLength)
-        {
-            var half = BigInteger.One << (bitLength - 1);
-            return value == half ? BigInteger.Zero : BigInteger.One;
-        }
+        int comparison;
+        if (candidate >= 0)
+            comparison = numerator.CompareTo(denominator << candidate);
+        else
+            comparison = (numerator << -candidate).CompareTo(denominator);
 
-        var quotient = value >> shift;
-        var remainder = value - (quotient << shift);
-        var midpoint = BigInteger.One << (shift - 1);
-        if (remainder > midpoint || (remainder == midpoint && !quotient.IsEven))
+        return comparison >= 0 ? candidate : candidate - 1;
+    }
+
+    private static BigInteger RoundRatioByPowerOfTwo(
+        BigInteger numerator,
+        BigInteger denominator,
+        long binaryShift)
+    {
+        if (binaryShift >= 0L)
+            numerator <<= CheckedShift(binaryShift);
+        else
+            denominator <<= CheckedShift(-binaryShift);
+
+        var quotient = BigInteger.DivRem(numerator, denominator, out var remainder);
+        var twiceRemainder = remainder << 1;
+        var comparison = twiceRemainder.CompareTo(denominator);
+        if (comparison > 0 || (comparison == 0 && !quotient.IsEven))
             quotient += BigInteger.One;
         return quotient;
+    }
+
+    private static int CheckedShift(long shift)
+    {
+        if (shift < 0L || shift > int.MaxValue)
+            throw new InvalidOperationException("Quantity rule exact-rational binary shift exceeded the supported range.");
+        return (int)shift;
     }
 
     private static int GetPositiveBitLength(BigInteger value)
