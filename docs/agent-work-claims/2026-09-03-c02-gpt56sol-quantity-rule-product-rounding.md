@@ -1,11 +1,11 @@
 # Work claim — C02 quantity rule product rounding
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T12:46:42+07:00`
 - Baseline main SHA: `f10465dee4b50d445ed53999b9af7f5cd79e5ff7`
 - Implementation branch: `agent/c02-gpt56sol-20260903-rule-product-rounding/issue-176-quantity-rule-exact-product`
-- Integration batch: `TBD`
+- Integration batch: `PR #178`
 - Lane-Key: `issue-176`
 - Issue: `#176`
 
@@ -20,11 +20,13 @@ Correct IEEE-754 rounding of multi-factor products produced by `QuantityRuleEngi
 ## Excluded scope
 Domain/Persistence, QuantityAccumulator, QuantitySchedule/CSV, BOQ/commercial projection, BricsCAD adapters/UI, MCP, release/install.
 
-## Validation plan
-- TDD RED through real `QuantityRuleEngine.Evaluate` using three legal `Each` factors whose current sequential-mantissa product is one ULP high.
-- Preserve zero/missing-input semantics, factor exponents, unit-scale compensation, final overflow/underflow failure, output cardinality, provenance and deterministic rule ordering.
-- Self-review exact-product resource behavior at legal factor cardinality and use bounded-by-input deterministic precision state.
-- Require fresh exact-head CI GREEN, merge, exact-main CI GREEN, then terminalize claim.
+## Validation evidence
+- Regression-only SHA `d88dcb27b1550371ad9fc2d3971f81688183c783`: CI `33720378140` FAILURE after clean Release build, exactly on `2.8912663957675546` versus expected `2.891266395767554`.
+- Production SHA `97d253058a536c4feea82312af534256f5bc3a45`: exact binary significand/exponent product with one final nearest-even rounding.
+- Resource-safety hardening SHA `198fa84262154cba2387e38db1c4107088b5408a`: bounded extreme-underflow right-shift rounding.
+- Final exact head `7db4d223b6cba4d99e1d390e9d38a3951b7a8e39`: CI `33720660762` SUCCESS including authoritative validation and strengthened product-rounding smoke.
+- PR #178 merge commit `f37ffab03dbcd565aa58b6d1dbcb0f1c191353f8`.
+- Exact-main push CI `33720774525` SUCCESS on `f37ffab03dbcd565aa58b6d1dbcb0f1c191353f8`.
 
-## Completion condition
-Rule products reflect one final nearest-even rounding of the exact admitted binary64 factors without weakening existing safety or cardinality contracts, and current main carries the verified implementation.
+## Completion
+`QuantityRuleEngine` now multiplies the exact admitted binary64 significands and powers of two, then rounds once using round-to-nearest/ties-to-even. Regression permutations, exponent semantics, subnormal tie cases and far-underflow fail-closed behavior are pinned without weakening missing-input, unit-scale, output-cardinality, provenance or deterministic ordering contracts.
