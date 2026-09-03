@@ -26,10 +26,10 @@ internal static class QuantityScheduleCsvProvenanceFidelityModuleSmoke
         var lines = csv.Split(new[] { "\r\n" }, StringSplitOptions.None);
 
         Equal(
-            "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId",
+            "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount",
             lines[0]);
         Equal(
-            "00000000-0000-0000-0000-000000000001,Measured Wall,WALL.AREA,Area,12.5,m2,Wall,11111111-1111-1111-1111-111111111111,'=Wall Family,22222222-2222-2222-2222-222222222222,33333333-3333-3333-3333-333333333333",
+            "00000000-0000-0000-0000-000000000001,Measured Wall,WALL.AREA,Area,12.5,m2,Wall,11111111-1111-1111-1111-111111111111,'=Wall Family,22222222-2222-2222-2222-222222222222,33333333-3333-3333-3333-333333333333,1,1",
             lines[1]);
         Equal(string.Empty, lines[2]);
 
@@ -45,7 +45,7 @@ internal static class QuantityScheduleCsvProvenanceFidelityModuleSmoke
         var emptyCsv = QuantityScheduleCsv.Write(new QuantitySchedule(new[] { emptyRow }));
         var emptyLines = emptyCsv.Split(new[] { "\r\n" }, StringSplitOptions.None);
         Equal(
-            "00000000-0000-0000-0000-000000000002,Empty Wall,,,,,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,",
+            "00000000-0000-0000-0000-000000000002,Empty Wall,,,,,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,,,",
             emptyLines[1]);
 
         Console.WriteLine("PASS quantity schedule CSV provenance fidelity");
