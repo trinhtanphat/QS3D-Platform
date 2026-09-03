@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Globalization;
+using System.Numerics;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
 
@@ -203,8 +204,8 @@ internal static class QuantityRuleMaterializer
 public static class QuantityRuleEngine
 {
     private const int MaximumFacts = 100_000;
-    private const double TwoTo52 = 4503599627370496d;
-    private const double MinimumNormal = 2.2250738585072014e-308d;
+    private const long FractionMask = 0x000fffffffffffffL;
+    private const ulong HiddenBit = 1UL << 52;
 
     public static IReadOnlyList<QuantityFact> Evaluate(
         SemanticProject project,
@@ -274,62 +275,150 @@ public static class QuantityRuleEngine
         if (factors.Any(static factor => factor == 0d))
             return 0d;
 
-        factors.Sort();
-        var mantissa = 1d;
-        long exponent = 0;
-
+        var significands = new List<ulong>(factors.Count);
+        long binaryExponent = 0;
         foreach (var factor in factors)
         {
-            DecomposePositiveFinite(factor, out var factorMantissa, out var factorExponent);
-            mantissa *= factorMantissa;
-            exponent += factorExponent;
-            if (mantissa >= 2d)
-            {
-                mantissa *= 0.5d;
-                exponent++;
-            }
+            if (factor == 1d) continue;
+            DecomposeExactPositiveFinite(factor, out var significand, out var exponent);
+            significands.Add(significand);
+            binaryExponent += exponent;
         }
 
-        var result = ComposeFiniteProduct(mantissa, exponent);
-        if (!Numeric.IsFinite(result))
-            throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
-        if (result == 0d)
-            throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
-        return result;
+        if (significands.Count == 0)
+            return 1d;
+
+        var exactSignificand = MultiplySignificandsBalanced(significands, 0, significands.Count);
+        return RoundExactBinaryProduct(exactSignificand, binaryExponent, ruleCode, elementName);
     }
 
-    private static void DecomposePositiveFinite(double value, out double mantissa, out int exponent)
+    private static void DecomposeExactPositiveFinite(double value, out ulong significand, out int binaryExponent)
     {
         var bits = BitConverter.DoubleToInt64Bits(value);
         var rawExponent = (int)((bits >> 52) & 0x7ffL);
-        var fraction = bits & 0x000fffffffffffffL;
-
-        if (rawExponent != 0)
+        var fraction = (ulong)(bits & FractionMask);
+        if (rawExponent == 0)
         {
-            exponent = rawExponent - 1023;
-            mantissa = 1d + fraction / TwoTo52;
+            significand = fraction;
+            binaryExponent = -1074;
             return;
         }
 
-        var significandBits = (ulong)fraction;
-        var highestBit = 0;
-        for (var cursor = significandBits; (cursor >>= 1) != 0; highestBit++)
-        {
-        }
-
-        exponent = highestBit - 1074;
-        mantissa = (double)significandBits / (1L << highestBit);
+        significand = HiddenBit | fraction;
+        binaryExponent = rawExponent - 1023 - 52;
     }
 
-    private static double ComposeFiniteProduct(double mantissa, long exponent)
+    private static BigInteger MultiplySignificandsBalanced(IReadOnlyList<ulong> significands, int start, int count)
     {
-        if (exponent > 1023)
-            return double.PositiveInfinity;
-        if (exponent < -1075)
-            return 0d;
-        if (exponent >= -1022)
-            return mantissa * Math.Pow(2d, exponent);
+        if (count == 1)
+            return new BigInteger(significands[start]);
+        if (count <= 8)
+        {
+            var product = BigInteger.One;
+            for (var i = 0; i < count; i++)
+                product *= significands[start + i];
+            return product;
+        }
 
-        return mantissa * Math.Pow(2d, exponent + 1022) * MinimumNormal;
+        var leftCount = count / 2;
+        var left = MultiplySignificandsBalanced(significands, start, leftCount);
+        var right = MultiplySignificandsBalanced(significands, start + leftCount, count - leftCount);
+        return left * right;
+    }
+
+    private static double RoundExactBinaryProduct(
+        BigInteger exactSignificand,
+        long binaryExponent,
+        string ruleCode,
+        string elementName)
+    {
+        var bitLength = GetPositiveBitLength(exactSignificand);
+        var highestBinaryExponent = binaryExponent + bitLength - 1L;
+
+        if (highestBinaryExponent < -1022L)
+        {
+            var unitShift = binaryExponent + 1074L;
+            BigInteger roundedUnits;
+            if (unitShift >= 0L)
+            {
+                roundedUnits = exactSignificand << checked((int)unitShift);
+            }
+            else
+            {
+                roundedUnits = RoundRightToNearestEven(exactSignificand, checked((int)-unitShift));
+            }
+
+            if (roundedUnits.IsZero)
+                throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
+            if (roundedUnits > new BigInteger(HiddenBit))
+                throw new InvalidOperationException("Quantity rule exact subnormal rounding exceeded the minimum-normal boundary.");
+            return BitConverter.Int64BitsToDouble((long)(ulong)roundedUnits);
+        }
+
+        var significandShift = bitLength - 53;
+        BigInteger roundedSignificand;
+        if (significandShift > 0)
+            roundedSignificand = RoundRightToNearestEven(exactSignificand, significandShift);
+        else
+            roundedSignificand = exactSignificand << -significandShift;
+
+        var representedExponent = binaryExponent + significandShift;
+        if (roundedSignificand == (BigInteger.One << 53))
+        {
+            roundedSignificand >>= 1;
+            representedExponent++;
+        }
+
+        var rawExponent = representedExponent + 1075L;
+        if (rawExponent >= 0x7ffL)
+            throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
+        if (rawExponent <= 0L)
+            throw new InvalidOperationException("Quantity rule exact normal rounding crossed below the normal exponent range.");
+
+        var significand = (ulong)roundedSignificand;
+        var fraction = significand - HiddenBit;
+        var bits = ((ulong)rawExponent << 52) | fraction;
+        var result = BitConverter.Int64BitsToDouble((long)bits);
+        if (!Numeric.IsFinite(result))
+            throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
+        return result;
+    }
+
+    private static BigInteger RoundRightToNearestEven(BigInteger value, int shift)
+    {
+        if (shift <= 0) return value << -shift;
+
+        var bitLength = GetPositiveBitLength(value);
+        if (shift > bitLength)
+            return BigInteger.Zero;
+        if (shift == bitLength)
+        {
+            var half = BigInteger.One << (bitLength - 1);
+            return value == half ? BigInteger.Zero : BigInteger.One;
+        }
+
+        var quotient = value >> shift;
+        var remainder = value - (quotient << shift);
+        var midpoint = BigInteger.One << (shift - 1);
+        if (remainder > midpoint || (remainder == midpoint && !quotient.IsEven))
+            quotient += BigInteger.One;
+        return quotient;
+    }
+
+    private static int GetPositiveBitLength(BigInteger value)
+    {
+        var bytes = value.ToByteArray();
+        var highestIndex = bytes.Length - 1;
+        while (highestIndex > 0 && bytes[highestIndex] == 0)
+            highestIndex--;
+
+        var highest = bytes[highestIndex];
+        var bitsInHighest = 0;
+        while (highest != 0)
+        {
+            bitsInHighest++;
+            highest >>= 1;
+        }
+        return highestIndex * 8 + bitsInHighest;
     }
 }
