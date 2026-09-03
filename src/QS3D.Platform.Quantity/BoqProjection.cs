@@ -253,6 +253,7 @@ internal static class BoqArithmetic
 {
     public static decimal CalculateTotal(string code, QuantityValue quantity, decimal unitRate)
     {
+        if (unitRate == 0m) return 0m;
         var canonicalQuantity = ConvertCanonicalQuantityToDecimal(code, quantity);
         try { return checked(canonicalQuantity * unitRate); }
         catch (OverflowException ex)
