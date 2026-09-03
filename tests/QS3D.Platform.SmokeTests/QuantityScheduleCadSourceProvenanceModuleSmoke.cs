@@ -9,6 +9,13 @@ internal static class QuantityScheduleCadSourceProvenanceModuleSmoke
     [ModuleInitializer]
     internal static void Run()
     {
+        var constructorArities = typeof(QuantityScheduleRow)
+            .GetConstructors()
+            .Select(static constructor => constructor.GetParameters().Length)
+            .ToArray();
+        if (!constructorArities.Contains(8) || !constructorArities.Contains(9))
+            throw new InvalidOperationException("QuantityScheduleRow must retain the legacy 8-parameter constructor and add a distinct source-aware 9-parameter constructor.");
+
         var family = new Family(FamilyId.New(), SemanticElementKind.Wall, "Wall Family");
         var project = new SemanticProject(ProjectId.New(), "Schedule CAD source provenance");
         project.AddFamily(family);
