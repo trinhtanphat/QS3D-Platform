@@ -11,9 +11,11 @@ internal static class QuantityScheduleCrossRowDimensionAffinityModuleSmoke
     {
         var failures = new List<string>();
         VerifyPublicScheduleRejectsCrossRowDimensionAmbiguity(failures);
+        VerifyReverseOrderingAlsoRejects(failures);
         VerifyProjectorRejectsCrossElementDimensionAmbiguity(failures);
         VerifySameCodeSameDimensionAcrossRowsRemainsValid(failures);
         VerifyDistinctCodesAcrossRowsRemainValid(failures);
+        VerifyEmptyRowsRemainValid(failures);
 
         if (failures.Count != 0)
             throw new InvalidOperationException("Quantity schedule cross-row dimension affinity failed: " + string.Join("; ", failures));
@@ -23,25 +25,42 @@ internal static class QuantityScheduleCrossRowDimensionAffinityModuleSmoke
 
     private static void VerifyPublicScheduleRejectsCrossRowDimensionAmbiguity(List<string> failures)
     {
-        var rows = new[]
-        {
-            CreateRow("11111111-1111-1111-1111-111111111111", "Wall A", "WALL.QTY", QuantityDimension.Length, 3d),
-            CreateRow("22222222-2222-2222-2222-222222222222", "Wall B", "WALL.QTY", QuantityDimension.Area, 9d)
-        };
+        var rows = CreateAmbiguousRows();
+        VerifyRejected(rows, "public schedule accepted one code with different dimensions across rows", failures);
+    }
 
+    private static void VerifyReverseOrderingAlsoRejects(List<string> failures)
+    {
+        var rows = CreateAmbiguousRows();
+        Array.Reverse(rows);
+        VerifyRejected(rows, "reverse-ordered schedule accepted one code with different dimensions across rows", failures);
+    }
+
+    private static void VerifyRejected(
+        IEnumerable<QuantityScheduleRow> rows,
+        string acceptanceFailure,
+        List<string> failures)
+    {
         try
         {
             _ = new QuantitySchedule(rows);
-            failures.Add("public schedule accepted one code with different dimensions across rows");
+            failures.Add(acceptanceFailure);
         }
         catch (InvalidOperationException ex) when (ex.Message.StartsWith("Quantity code 'WALL.QTY'", StringComparison.Ordinal))
         {
         }
         catch (Exception ex)
         {
-            failures.Add("public schedule cross-row rejection threw unexpected " + ex.GetType().Name);
+            failures.Add("cross-row rejection threw unexpected " + ex.GetType().Name);
         }
     }
+
+    private static QuantityScheduleRow[] CreateAmbiguousRows() =>
+        new[]
+        {
+            CreateRow("11111111-1111-1111-1111-111111111111", "Wall A", "WALL.QTY", QuantityDimension.Length, 3d),
+            CreateRow("22222222-2222-2222-2222-222222222222", "Wall B", "WALL.QTY", QuantityDimension.Area, 9d)
+        };
 
     private static void VerifyProjectorRejectsCrossElementDimensionAmbiguity(List<string> failures)
     {
@@ -95,6 +114,23 @@ internal static class QuantityScheduleCrossRowDimensionAffinityModuleSmoke
 
         if (schedule.Rows.Count != 2)
             failures.Add("valid distinct-code rows were not preserved");
+    }
+
+    private static void VerifyEmptyRowsRemainValid(List<string> failures)
+    {
+        var emptyRow = new QuantityScheduleRow(
+            new ElementId(Guid.Parse("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb")),
+            "Empty wall",
+            SemanticElementKind.Wall,
+            new FamilyId(Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
+            "Wall family",
+            null,
+            null,
+            Array.Empty<QuantitySummary>());
+
+        var schedule = new QuantitySchedule(new[] { emptyRow });
+        if (schedule.Rows.Count != 1 || schedule.Rows[0].Quantities.Count != 0)
+            failures.Add("empty schedule row compatibility was lost");
     }
 
     private static QuantityScheduleRow CreateRow(
