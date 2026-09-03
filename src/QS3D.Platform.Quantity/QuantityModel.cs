@@ -156,18 +156,66 @@ public static class QuantityAccumulator
         if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
             throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
 
-        int? finalCount = null;
-        CaptureCount(facts as ICollection<QuantityFact>, static collection => collection.Count, ref finalCount);
-        CaptureCount(facts as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref finalCount);
-        CaptureCount(facts as ICollection, static collection => collection.Count, ref finalCount);
-
-        if (finalCount.HasValue && finalCount.Value != copied.Count)
-            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
-        if (advertisedCount.HasValue != finalCount.HasValue
-            || (advertisedCount.HasValue && advertisedCount.Value != finalCount!.Value))
-            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
-
+        RequireStableKnownCount(facts, advertisedCount, copied.Count);
+        RequireStableFactGeneration(facts, advertisedCount, copied);
         return copied.ToArray();
+    }
+
+    private static void RequireStableFactGeneration(
+        IEnumerable<QuantityFact> facts,
+        int? advertisedCount,
+        IReadOnlyList<QuantityFact> snapshot)
+    {
+        if (!advertisedCount.HasValue)
+            return;
+
+        var index = 0;
+        using (var enumerator = facts.GetEnumerator())
+        {
+            while (true)
+            {
+                RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
+                if (!enumerator.MoveNext())
+                    break;
+                RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
+
+                if (index >= snapshot.Count || !QuantityFactStateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException("Quantity facts content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Count)
+            throw new InvalidOperationException("Quantity facts content changed during materialization.");
+        RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
+    }
+
+    private static bool QuantityFactStateEquals(QuantityFact? left, QuantityFact? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        return left.ElementId.Equals(right.ElementId)
+            && StringComparer.Ordinal.Equals(left.Code, right.Code)
+            && left.Quantity.Equals(right.Quantity)
+            && Nullable.Equals(left.SourceReference, right.SourceReference);
+    }
+
+    private static void RequireStableKnownCount(
+        IEnumerable<QuantityFact> facts,
+        int? advertisedCount,
+        int materializedCount)
+    {
+        int? currentCount = null;
+        CaptureCount(facts as ICollection<QuantityFact>, static collection => collection.Count, ref currentCount);
+        CaptureCount(facts as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref currentCount);
+        CaptureCount(facts as ICollection, static collection => collection.Count, ref currentCount);
+
+        if (currentCount.HasValue && currentCount.Value != materializedCount)
+            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+        if (advertisedCount.HasValue != currentCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != currentCount!.Value))
+            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
     }
 
     private static void CaptureCount<TCollection>(TCollection? collection, Func<TCollection, int> getCount, ref int? advertisedCount)
