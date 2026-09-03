@@ -9,7 +9,7 @@ internal static class QuantityScheduleCsvEmptyRowFidelityModuleSmoke
     [ModuleInitializer]
     internal static void Run()
     {
-        const string header = "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId\r\n";
+        const string header = "ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount\r\n";
         var family = new Family(new FamilyId(Guid.Parse("11111111-1111-1111-1111-111111111111")), SemanticElementKind.Wall, "Wall Family");
         var project = new SemanticProject(new ProjectId(Guid.Parse("22222222-2222-2222-2222-222222222222")), "CSV empty row fidelity");
         project.AddFamily(family);
@@ -39,9 +39,9 @@ internal static class QuantityScheduleCsvEmptyRowFidelityModuleSmoke
         var csv = QuantityScheduleCsv.Write(schedule);
         var lines = csv.Split(new[] { "\r\n" }, StringSplitOptions.None);
         Equal(4, lines.Length); // header + 2 data rows + terminal empty split item
-        Equal("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId", lines[0]);
-        Equal("00000000-0000-0000-0000-000000000001,'=EMPTY-WALL,,,,,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,", lines[1]);
-        Equal("00000000-0000-0000-0000-000000000002,Measured Wall,WALL.AREA,Area,12.5,m2,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,", lines[2]);
+        Equal("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount", lines[0]);
+        Equal("00000000-0000-0000-0000-000000000001,'=EMPTY-WALL,,,,,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,,,", lines[1]);
+        Equal("00000000-0000-0000-0000-000000000002,Measured Wall,WALL.AREA,Area,12.5,m2,Wall,11111111-1111-1111-1111-111111111111,Wall Family,,,1,1", lines[2]);
         Equal(string.Empty, lines[3]);
 
         var emptyScheduleCsv = QuantityScheduleCsv.Write(new QuantitySchedule(Array.Empty<QuantityScheduleRow>()));
