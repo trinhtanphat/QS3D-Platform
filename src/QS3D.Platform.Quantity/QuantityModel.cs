@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Globalization;
+using System.Numerics;
 using QS3D.Platform.Domain;
 using QS3D.Platform.Geometry;
 
@@ -116,6 +117,8 @@ public sealed class QuantitySummary
 public static class QuantityAccumulator
 {
     private const int MaximumFacts = 100_000;
+    private const long FractionMask = 0x000fffffffffffffL;
+    private const ulong HiddenBit = 1UL << 52;
 
     public static IReadOnlyList<QuantitySummary> Summarize(IEnumerable<QuantityFact> facts)
     {
@@ -200,13 +203,12 @@ public static class QuantityAccumulator
 
     private static QuantitySummary CreateSummary(QuantityKey key, IEnumerable<QuantityFact> facts)
     {
-        var sum = 0d;
-        var compensation = 0d;
+        var exactUnits = BigInteger.Zero;
         var factCount = 0;
         var elementIds = new HashSet<ElementId>();
         var sourceByElement = new Dictionary<ElementId, CadReference?>();
 
-        foreach (var fact in facts.OrderBy(static fact => fact.Quantity.Value))
+        foreach (var fact in facts)
         {
             if (sourceByElement.TryGetValue(fact.ElementId, out var existingSource))
             {
@@ -218,17 +220,86 @@ public static class QuantityAccumulator
                 sourceByElement.Add(fact.ElementId, fact.SourceReference);
             }
 
-            var corrected = fact.Quantity.Value - compensation;
-            var next = sum + corrected;
-            compensation = (next - sum) - corrected;
-            sum = next;
+            AddExactDoubleUnits(ref exactUnits, fact.Quantity.Value);
             factCount++;
             elementIds.Add(fact.ElementId);
-            if (!Numeric.IsFinite(sum))
-                throw new OverflowException($"Quantity total for '{key.Code}' is not representable as a finite double.");
         }
 
+        var sum = RoundExactUnitsToFiniteDouble(exactUnits, key.Code);
         return new QuantitySummary(key.Code, key.Dimension, sum, factCount, elementIds.Count);
+    }
+
+    private static void AddExactDoubleUnits(ref BigInteger exactUnits, double value)
+    {
+        if (value == 0d) return;
+
+        var bits = BitConverter.DoubleToInt64Bits(value);
+        var rawExponent = (int)((bits >> 52) & 0x7ffL);
+        var fraction = (ulong)(bits & FractionMask);
+        if (rawExponent == 0)
+        {
+            exactUnits += new BigInteger(fraction);
+            return;
+        }
+
+        var significand = HiddenBit | fraction;
+        exactUnits += new BigInteger(significand) << (rawExponent - 1);
+    }
+
+    private static double RoundExactUnitsToFiniteDouble(BigInteger exactUnits, string code)
+    {
+        if (exactUnits.IsZero) return 0d;
+        if (exactUnits.Sign < 0)
+            throw new InvalidOperationException("Quantity accumulator exact sum became negative.");
+
+        var bitLength = GetPositiveBitLength(exactUnits);
+        if (bitLength <= 52)
+        {
+            var subnormalBits = (ulong)exactUnits;
+            return BitConverter.Int64BitsToDouble((long)subnormalBits);
+        }
+
+        var shift = bitLength - 53;
+        var roundedSignificand = exactUnits >> shift;
+        if (shift > 0)
+        {
+            var remainder = exactUnits - (roundedSignificand << shift);
+            var half = BigInteger.One << (shift - 1);
+            if (remainder > half || (remainder == half && !roundedSignificand.IsEven))
+                roundedSignificand += BigInteger.One;
+        }
+
+        if (roundedSignificand == (BigInteger.One << 53))
+        {
+            roundedSignificand >>= 1;
+            shift++;
+        }
+
+        var rawExponent = shift + 1;
+        if (rawExponent >= 0x7ff)
+            throw new OverflowException($"Quantity total for '{code}' is not representable as a finite double.");
+
+        var significand = (ulong)roundedSignificand;
+        var fraction = significand - HiddenBit;
+        var resultBits = ((ulong)rawExponent << 52) | fraction;
+        return BitConverter.Int64BitsToDouble((long)resultBits);
+    }
+
+    private static int GetPositiveBitLength(BigInteger value)
+    {
+        var bytes = value.ToByteArray();
+        var highestIndex = bytes.Length - 1;
+        while (highestIndex > 0 && bytes[highestIndex] == 0)
+            highestIndex--;
+
+        var highest = bytes[highestIndex];
+        var bitsInHighest = 0;
+        while (highest != 0)
+        {
+            bitsInHighest++;
+            highest >>= 1;
+        }
+        return highestIndex * 8 + bitsInHighest;
     }
 
     private readonly struct QuantityKey
