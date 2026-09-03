@@ -387,10 +387,20 @@ public static class QuantityRuleEngine
     private static BigInteger RoundRightToNearestEven(BigInteger value, int shift)
     {
         if (shift <= 0) return value << -shift;
+
+        var bitLength = GetPositiveBitLength(value);
+        if (shift > bitLength)
+            return BigInteger.Zero;
+        if (shift == bitLength)
+        {
+            var half = BigInteger.One << (bitLength - 1);
+            return value == half ? BigInteger.Zero : BigInteger.One;
+        }
+
         var quotient = value >> shift;
         var remainder = value - (quotient << shift);
-        var half = BigInteger.One << (shift - 1);
-        if (remainder > half || (remainder == half && !quotient.IsEven))
+        var midpoint = BigInteger.One << (shift - 1);
+        if (remainder > midpoint || (remainder == midpoint && !quotient.IsEven))
             quotient += BigInteger.One;
         return quotient;
     }
