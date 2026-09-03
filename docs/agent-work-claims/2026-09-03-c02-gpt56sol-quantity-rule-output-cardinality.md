@@ -1,11 +1,11 @@
 # Work claim — C02 quantity rule output cardinality
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T09:41:00+07:00`
 - Baseline main SHA: `2756e0570245377fa63491dee862f0d1691afce5`
 - Implementation branch: `agent/c02-gpt56sol-20260903-0939/issue-137-rule-output-cardinality`
-- Integration batch: `TBD`
+- Integration batch: `PR #141`
 - Lane-Key: `c02-quantity-rule-output-cardinality-20260903`
 - Issue: `#137`
 
@@ -20,12 +20,11 @@ C02 evaluated QuantityFact output cardinality in QuantityRuleEngine.
 ## Excluded scope
 Domain project cardinality policy, accumulator numeric logic, BricsCAD UI, MCP, release/install, persistence.
 
-## Validation plan
-- deterministic RED proving the producer can cross the downstream-supported 100,000-fact boundary;
-- production guard rejects before adding fact 100,001 while exactly 100,000 remains accepted;
-- skipped missing-input rules do not consume the fact budget;
-- preserve deterministic order, arithmetic/provenance and readonly-result behavior;
-- exact-head CI GREEN, merge, exact-main GREEN.
+## Validation evidence
+- Regression-only SHA `8ba5cae6f71a49cff8f4db88d3b3c618df4b48e3`: CI `33708666387` FAILURE before production changes.
+- Final exact head `ce273f9a28176560e052e393cd876e1f4c0c3386`: CI `33708739947` SUCCESS.
+- PR #141 merge commit `24662cb2ca90a07ef2efd51874bc8f3139276303`.
+- Exact-main push CI `33708852309` SUCCESS on `24662cb2ca90a07ef2efd51874bc8f3139276303`.
 
-## Completion condition
-QuantityRuleEngine bounds produced facts consistently with the quantity pipeline's supported fact ceiling without weakening existing behavior.
+## Completion
+`QuantityRuleEngine.Evaluate` now fails closed before adding output fact 100001 while preserving exactly 100000 supported facts, skipped-rule semantics, deterministic ordering, quantity arithmetic, provenance and immutable result exposure.
