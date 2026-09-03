@@ -1,6 +1,6 @@
 # Work claim — C02 quantity cross-key provenance
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T08:46:00+07:00`
 - Baseline main SHA: `f6d8c4004ff5add2a852cd2e0b270b3d58d6c2b4`
@@ -16,13 +16,8 @@ C02 direct quantity aggregation provenance consistency across quantity keys for 
 - `tests/QS3D.Platform.SmokeTests/QuantityAccumulatorCrossKeyProvenanceModuleSmoke.cs`
 - this claim file
 
-The regression uses `[ModuleInitializer]`, so `Program.cs` registration is intentionally not required or reserved.
+## Validation evidence
+Regression-only SHA `8aa2635e4d8e7c038a0c8e28559d1e3ab39a1d2a` failed CI run `33705156431`. Final candidate `8ef5622fb25cc5838321f2e62a5a96cda3812437` passed CI run `33705315543`. PR #126 merged as `ee98f7315f424e3d7141cee09806890021dff3d7`.
 
-## Excluded scope
-Domain/Core production, BricsCAD UI, MCP, release/install, unrelated quantity behavior.
-
-## Validation plan
-Deterministic RED smoke proving same-element conflicting CAD provenance is admitted across different quantity keys; production fail-closed validation across the whole aggregation; matching-null/non-null and different-element compatibility checks; broad smoke and fresh exact-head/exact-main CI.
-
-## Completion condition
-Implementation merged to main with fresh exact-head GREEN CI and final main SHA verified.
+## Completion
+Issue #124 is merged; reservation released. Post-merge exact-main evidence is tracked separately until the push run is terminal.
