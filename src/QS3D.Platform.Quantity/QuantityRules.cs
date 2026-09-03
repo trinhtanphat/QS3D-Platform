@@ -227,6 +227,9 @@ public static class QuantityRuleEngine
         {
             foreach (var rule in catalog.ForKind(element.Kind))
             {
+                if (!skipRuleWhenInputMissing && facts.Count >= MaximumFacts)
+                    throw new InvalidOperationException($"Evaluated quantity facts exceed the supported maximum of {MaximumFacts} entries.");
+
                 var value = TryEvaluate(element, rule, skipRuleWhenInputMissing, out var missingInput);
                 if (missingInput) continue;
                 if (facts.Count >= MaximumFacts)
