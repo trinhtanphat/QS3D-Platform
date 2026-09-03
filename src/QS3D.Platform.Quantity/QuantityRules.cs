@@ -187,7 +187,7 @@ internal static class QuantityRuleMaterializer
         if (advertisedCount.HasValue)
         {
             using var enumerator = source.GetEnumerator();
-            for (var index = 0; index < advertisedCount.Value; index++)
+            for (var materializedIndex = 0; materializedIndex < advertisedCount.Value; materializedIndex++)
             {
                 if (!enumerator.MoveNext())
                     throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
