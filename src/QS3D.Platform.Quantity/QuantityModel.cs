@@ -128,6 +128,7 @@ public static class QuantityAccumulator
         if (copiedFacts.Any(static fact => fact is null))
             throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
         ValidateSourceProvenance(copiedFacts);
+        ValidateCodeDimensionAffinity(copiedFacts);
 
         var summaries = copiedFacts
             .GroupBy(static fact => new QuantityKey(fact.Code, fact.Quantity.Dimension), QuantityKeyComparer.Instance)
@@ -241,6 +242,23 @@ public static class QuantityAccumulator
             else
             {
                 sourceByElement.Add(fact.ElementId, fact.SourceReference);
+            }
+        }
+    }
+
+    private static void ValidateCodeDimensionAffinity(IEnumerable<QuantityFact> facts)
+    {
+        var dimensionsByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
+        foreach (var fact in facts)
+        {
+            if (dimensionsByCode.TryGetValue(fact.Code, out var existingDimension))
+            {
+                if (existingDimension != fact.Quantity.Dimension)
+                    throw new InvalidOperationException($"Quantity code '{fact.Code}' is present with both {existingDimension} and {fact.Quantity.Dimension} dimensions.");
+            }
+            else
+            {
+                dimensionsByCode.Add(fact.Code, fact.Quantity.Dimension);
             }
         }
     }
