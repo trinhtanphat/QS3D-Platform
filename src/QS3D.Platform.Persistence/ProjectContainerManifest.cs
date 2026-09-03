@@ -135,14 +135,28 @@ public static class ProjectContainerManifestValidator
         if (manifest is null) throw new ArgumentNullException(nameof(manifest));
         if (payloads is null) throw new ArgumentNullException(nameof(payloads));
 
+        var advertisedCount = payloads.Count;
+        ValidatePayloadSetCount(advertisedCount);
+
         var actualByName = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         foreach (var pair in payloads)
         {
+            if (actualByName.Count >= SnapshotGuard.MaxCollectionEntries)
+                throw new ArgumentException($"Payload set exceeds the {SnapshotGuard.MaxCollectionEntries} entry limit.", nameof(payloads));
+
             var normalized = ProjectContainerPayload.NormalizeToken(pair.Key, nameof(payloads));
             if (pair.Value is null) throw new InvalidDataException($"Payload '{normalized}' content is null.");
             if (actualByName.ContainsKey(normalized)) throw new InvalidDataException($"Payload set contains duplicate normalized name '{normalized}'.");
             actualByName.Add(normalized, pair.Value);
         }
+
+        if (actualByName.Count != advertisedCount)
+            throw new ArgumentException("Payload set Count does not match enumeration.", nameof(payloads));
+
+        var finalCount = payloads.Count;
+        ValidatePayloadSetCount(finalCount);
+        if (finalCount != advertisedCount || finalCount != actualByName.Count)
+            throw new ArgumentException("Payload set Count changed during materialization.", nameof(payloads));
 
         var declared = new HashSet<string>(manifest.Payloads.Select(static payload => payload.Name), StringComparer.Ordinal);
         foreach (var actualName in actualByName.Keys)
@@ -159,5 +173,13 @@ public static class ProjectContainerManifestValidator
             }
             ValidatePayload(manifest, expected.Name, bytes.LongLength, ProjectContainerManifest.Hash(bytes));
         }
+    }
+
+    private static void ValidatePayloadSetCount(int count)
+    {
+        if (count < 0)
+            throw new ArgumentException("Payload set Count must not be negative.", "payloads");
+        if (count > SnapshotGuard.MaxCollectionEntries)
+            throw new ArgumentException($"Payload set exceeds the {SnapshotGuard.MaxCollectionEntries} entry limit.", "payloads");
     }
 }
