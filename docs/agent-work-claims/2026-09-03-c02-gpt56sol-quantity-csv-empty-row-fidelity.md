@@ -1,6 +1,6 @@
 # Work claim — C02 quantity CSV empty-row fidelity
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T12:10:00+07:00`
 - Baseline main SHA: `d076fb509f97097ac12224910c319d3aed51418c`
@@ -20,12 +20,11 @@ Preserve valid intentionally empty `QuantityScheduleRow` records across CSV expo
 ## Excluded scope
 CSV import (none exists), Quantity arithmetic, BOQ/commercial math, Domain/Core persistence, UI, MCP, installer/release.
 
-## Validation plan
-1. deterministic RED from a canonical projector result using `includeElementsWithoutQuantities: true`;
-2. emit exactly one row-preservation record for an empty schedule row with blank quantity fields, no fake zero/code;
-3. retain existing populated-row ordering, formula-injection neutralization and canonical CRLF;
-4. verify truly empty schedules remain header-only and mixed empty/populated schedules preserve both elements;
-5. exact-head and exact-main CI GREEN before completion.
+## Validation evidence
+- RED regression-only head: `9d936126c315bc7d6c4f05642e6222700886265c`, CI `33717834334` FAILURE.
+- GREEN exact implementation head: `449ff2f48e4f8319a78e05e5f4cf8eef45e4300e`, CI `33717963963` SUCCESS.
+- Implementation merge commit: `f32e9ccded477ee5f567337745eb8bcce9f9a444`.
+- Exact-main CI: `33718022481` SUCCESS on `f32e9ccded477ee5f567337745eb8bcce9f9a444`.
 
 ## Completion condition
-Implementation merged to current main with fresh exact-head GREEN and exact-main GREEN evidence, then claim terminalized.
+Satisfied: intentionally empty schedule rows survive CSV export with blank quantity fields and preserved spreadsheet neutralization, populated rows remain unchanged, implementation is merged, and exact-main CI is green.
