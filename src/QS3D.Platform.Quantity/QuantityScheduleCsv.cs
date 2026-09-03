@@ -13,7 +13,7 @@ public static class QuantityScheduleCsv
         EnsureOutputRecordCardinality(schedule);
 
         var output = new StringBuilder();
-        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit");
+        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId");
         output.Append(CsvLineEnding);
         foreach (var row in schedule.Rows.OrderBy(static row => row.ElementId.Value))
         {
@@ -24,7 +24,8 @@ public static class QuantityScheduleCsv
                 Append(output, string.Empty);
                 Append(output, string.Empty);
                 Append(output, string.Empty);
-                Append(output, string.Empty, last: true);
+                Append(output, string.Empty);
+                AppendProvenance(output, row);
                 continue;
             }
 
@@ -35,10 +36,29 @@ public static class QuantityScheduleCsv
                 Append(output, NeutralizeSpreadsheetActiveText(summary.Code));
                 Append(output, summary.Quantity.Dimension.ToString());
                 Append(output, summary.Quantity.Value.ToString("R", CultureInfo.InvariantCulture));
-                Append(output, CanonicalSymbol(summary.Quantity.Dimension), last: true);
+                Append(output, CanonicalSymbol(summary.Quantity.Dimension));
+                AppendProvenance(output, row);
             }
         }
         return output.ToString();
+    }
+
+    private static void AppendProvenance(StringBuilder output, QuantityScheduleRow row)
+    {
+        Append(output, row.ElementKind.ToString());
+        Append(output, row.FamilyId.Value.ToString("D", CultureInfo.InvariantCulture));
+        Append(output, NeutralizeSpreadsheetActiveText(row.FamilyName));
+        Append(
+            output,
+            row.FloorId.HasValue
+                ? row.FloorId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
+                : string.Empty);
+        Append(
+            output,
+            row.ZoneId.HasValue
+                ? row.ZoneId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
+                : string.Empty,
+            last: true);
     }
 
     private static void EnsureOutputRecordCardinality(QuantitySchedule schedule)
