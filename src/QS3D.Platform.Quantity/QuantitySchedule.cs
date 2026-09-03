@@ -105,7 +105,7 @@ public sealed class QuantitySchedule
     public QuantitySchedule(IEnumerable<QuantityScheduleRow> rows)
     {
         if (rows is null) throw new ArgumentNullException(nameof(rows));
-        var copiedRows = QuantityScheduleMaterializer.Materialize(rows, nameof(rows), "schedule rows");
+        var copiedRows = QuantityScheduleMaterializer.MaterializeStableScheduleRows(rows, nameof(rows), "schedule rows");
         if (copiedRows.Any(static row => row is null)) throw new ArgumentException("Schedule rows must not contain null entries.", nameof(rows));
         var elementIds = new HashSet<ElementId>();
         foreach (var row in copiedRows)
@@ -133,17 +133,9 @@ public static class QuantityScheduleProjector
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (facts is null) throw new ArgumentNullException(nameof(facts));
 
-        // In include-empty mode every project element necessarily becomes one output row. Reject
-        // impossible cardinality before allocating any project snapshot state. Keep the later
-        // snapshot-length check as a fail-closed guard if project membership changes concurrently
-        // between this admission read and snapshot materialization.
         if (includeElementsWithoutQuantities && project.Elements.Count > QuantityScheduleMaterializer.MaximumEntries)
             throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
-        // Snapshot every project value that this projection can observe before executing the
-        // caller-controlled facts enumerable. Keeping SemanticElement references here would
-        // still permit SetSource/SetLocation (or project membership changes) to alter one
-        // in-flight schedule after admission.
         var familyNames = project.Families.ToDictionary(static family => family.Id, static family => family.Name);
         var floorIds = new HashSet<FloorId>(project.Floors.Select(static floor => floor.Id));
         var zoneIds = new HashSet<ZoneId>(project.Zones.Select(static zone => zone.Id));
@@ -274,6 +266,52 @@ internal static class QuantityScheduleMaterializer
         return result.ToArray();
     }
 
+    internal static QuantityScheduleRow[] MaterializeStableScheduleRows(
+        IEnumerable<QuantityScheduleRow> source,
+        string parameterName,
+        string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        int? advertisedCount = null;
+        CaptureCount(source as ICollection<QuantityScheduleRow>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantityScheduleRow>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+
+        var result = advertisedCount.HasValue ? new List<QuantityScheduleRow>(advertisedCount.Value) : new List<QuantityScheduleRow>();
+        foreach (var row in source)
+        {
+            if (result.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            result.Add(row);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        RequireStableKnownRowCount(source, advertisedCount, result.Count, parameterName, entryDescription);
+        if (!advertisedCount.HasValue)
+            return result.ToArray();
+
+        var snapshot = result.ToArray();
+        var index = 0;
+        using (var enumerator = source.GetEnumerator())
+        {
+            while (enumerator.MoveNext())
+            {
+                if (index >= snapshot.Length || !QuantityScheduleRowStateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+        RequireStableKnownRowCount(source, advertisedCount, snapshot.Length, parameterName, entryDescription);
+        return snapshot;
+    }
+
     internal static QuantitySummary[] MaterializeStableQuantitySummaries(
         IEnumerable<QuantitySummary> source,
         string parameterName,
@@ -366,6 +404,30 @@ internal static class QuantityScheduleMaterializer
         return snapshot;
     }
 
+    private static bool QuantityScheduleRowStateEquals(QuantityScheduleRow? left, QuantityScheduleRow? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        if (!left.ElementId.Equals(right.ElementId)
+            || !StringComparer.Ordinal.Equals(left.ElementName, right.ElementName)
+            || left.ElementKind != right.ElementKind
+            || !left.FamilyId.Equals(right.FamilyId)
+            || !StringComparer.Ordinal.Equals(left.FamilyName, right.FamilyName)
+            || !Nullable.Equals(left.FloorId, right.FloorId)
+            || !Nullable.Equals(left.ZoneId, right.ZoneId)
+            || !Nullable.Equals(left.SourceReference, right.SourceReference)
+            || left.Quantities.Count != right.Quantities.Count)
+            return false;
+
+        for (var index = 0; index < left.Quantities.Count; index++)
+        {
+            if (!QuantitySummaryStateEquals(left.Quantities[index], right.Quantities[index]))
+                return false;
+        }
+        return true;
+    }
+
     private static bool QuantitySummaryStateEquals(QuantitySummary? left, QuantitySummary? right)
     {
         if (left is null || right is null)
@@ -386,6 +448,25 @@ internal static class QuantityScheduleMaterializer
             && StringComparer.Ordinal.Equals(left.Code, right.Code)
             && left.Quantity.Equals(right.Quantity)
             && Nullable.Equals(left.SourceReference, right.SourceReference);
+    }
+
+    private static void RequireStableKnownRowCount(
+        IEnumerable<QuantityScheduleRow> source,
+        int? advertisedCount,
+        int materializedCount,
+        string parameterName,
+        string entryDescription)
+    {
+        int? currentCount = null;
+        CaptureCount(source as ICollection<QuantityScheduleRow>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantityScheduleRow>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+
+        if (currentCount.HasValue && currentCount.Value != materializedCount)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        if (advertisedCount.HasValue != currentCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != currentCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
     }
 
     private static void RequireStableKnownSummaryCount(
