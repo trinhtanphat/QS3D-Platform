@@ -50,14 +50,45 @@ public sealed class UnitRate
 public sealed class BoqLine
 {
     public BoqLine(string code, QuantityValue quantity, int elementCount, decimal unitRate, Money total)
+        : this(code, quantity, null, elementCount, unitRate, total)
+    {
+    }
+
+    public BoqLine(string code, QuantityValue quantity, int factCount, int elementCount, decimal unitRate, Money total)
+        : this(code, quantity, (int?)factCount, elementCount, unitRate, total)
+    {
+    }
+
+    private BoqLine(string code, QuantityValue quantity, int? factCount, int elementCount, decimal unitRate, Money total)
     {
         if (string.IsNullOrWhiteSpace(code)) throw new ArgumentException("BQ code must not be blank.", nameof(code));
         if (elementCount < 0) throw new ArgumentOutOfRangeException(nameof(elementCount));
-        if (elementCount == 0 && quantity.Value != 0d)
+        if (factCount.HasValue)
+        {
+            if (factCount.Value < 0) throw new ArgumentOutOfRangeException(nameof(factCount));
+            if (factCount.Value == 0)
+            {
+                if (elementCount != 0)
+                    throw new ArgumentException("Element count must be zero when fact count is zero.", nameof(elementCount));
+                if (quantity.Value != 0d)
+                    throw new ArgumentException("Quantity value must be zero when fact count is zero.", nameof(quantity));
+            }
+            else
+            {
+                if (elementCount == 0)
+                    throw new ArgumentException("Element count must be positive when fact count is positive.", nameof(elementCount));
+                if (elementCount > factCount.Value)
+                    throw new ArgumentException("Element count must not exceed fact count.", nameof(elementCount));
+            }
+        }
+        else if (elementCount == 0 && quantity.Value != 0d)
+        {
             throw new ArgumentException("A positive BQ quantity requires at least one contributing element.", nameof(elementCount));
+        }
         if (unitRate < 0m) throw new ArgumentOutOfRangeException(nameof(unitRate));
         Code = code.Trim();
         Quantity = quantity;
+        FactCount = factCount;
         ElementCount = elementCount;
         UnitRate = unitRate;
         Total = total;
@@ -65,6 +96,7 @@ public sealed class BoqLine
 
     public string Code { get; }
     public QuantityValue Quantity { get; }
+    public int? FactCount { get; }
     public int ElementCount { get; }
     public decimal UnitRate { get; }
     public Money Total { get; }
@@ -165,6 +197,7 @@ public static class BoqProjector
             lines.Add(new BoqLine(
                 quantity.Code,
                 quantity.Quantity,
+                quantity.FactCount,
                 quantity.ElementCount,
                 rate.AmountPerCanonicalUnit,
                 new Money(total, normalizedCurrency)));
