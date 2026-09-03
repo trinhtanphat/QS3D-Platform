@@ -185,9 +185,20 @@ public static class QuantityAccumulator
         var compensation = 0d;
         var factCount = 0;
         var elementIds = new HashSet<ElementId>();
+        var sourceByElement = new Dictionary<ElementId, CadReference?>();
 
         foreach (var fact in facts.OrderBy(static fact => fact.Quantity.Value))
         {
+            if (sourceByElement.TryGetValue(fact.ElementId, out var existingSource))
+            {
+                if (existingSource != fact.SourceReference)
+                    throw new InvalidOperationException($"Quantity facts for element {fact.ElementId.Value:D} and '{key.Code}'/{key.Dimension} contain conflicting CAD provenance.");
+            }
+            else
+            {
+                sourceByElement.Add(fact.ElementId, fact.SourceReference);
+            }
+
             var corrected = fact.Quantity.Value - compensation;
             var next = sum + corrected;
             compensation = (next - sum) - corrected;
