@@ -16,7 +16,7 @@ internal static class BoqFactProvenanceModuleSmoke
             factCount: 2,
             elementCount: 1,
             unitRate: 4m,
-            new Money(50m, "USD"));
+            total: new Money(50m, "USD"));
         if (evidenceAware.FactCount != 2)
             failures.Add("evidence-aware BOQ line did not retain fact count");
         if (evidenceAware.ElementCount != 1)
@@ -27,7 +27,7 @@ internal static class BoqFactProvenanceModuleSmoke
             new QuantityValue(QuantityDimension.Area, 12.5d),
             elementCount: 1,
             unitRate: 4m,
-            new Money(50m, "USD"));
+            total: new Money(50m, "USD"));
         if (legacy.FactCount is not null)
             failures.Add("legacy constructor fabricated fact provenance");
 
@@ -38,7 +38,7 @@ internal static class BoqFactProvenanceModuleSmoke
                 factCount: 1,
                 elementCount: 2,
                 unitRate: 4m,
-                new Money(50m, "USD")));
+                total: new Money(50m, "USD")));
 
         ExpectRejected(failures, "positive quantity with zero facts", () =>
             new BoqLine(
@@ -47,7 +47,7 @@ internal static class BoqFactProvenanceModuleSmoke
                 factCount: 0,
                 elementCount: 0,
                 unitRate: 4m,
-                new Money(50m, "USD")));
+                total: new Money(50m, "USD")));
 
         var zeroBacked = new BoqLine(
             "AREA",
@@ -55,7 +55,7 @@ internal static class BoqFactProvenanceModuleSmoke
             factCount: 2,
             elementCount: 1,
             unitRate: 4m,
-            new Money(0m, "USD"));
+            total: new Money(0m, "USD"));
         if (zeroBacked.FactCount != 2 || zeroBacked.ElementCount != 1)
             failures.Add("zero-valued fact-backed line lost evidence cardinality");
 
