@@ -16,7 +16,8 @@ internal static class QuantityRuleOverflowAdmissionModuleSmoke
             SemanticElementKind.Wall,
             "Overflow admission wall",
             familyId);
-        element.SetProperty("X", 2d.ToString("R", CultureInfo.InvariantCulture));
+        element.SetProperty("UP", 2d.ToString("R", CultureInfo.InvariantCulture));
+        element.SetProperty("DOWN", 0.5d.ToString("R", CultureInfo.InvariantCulture));
         element.SetProperty("MAX", double.MaxValue.ToString("R", CultureInfo.InvariantCulture));
 
         var project = new SemanticProject(
@@ -25,46 +26,57 @@ internal static class QuantityRuleOverflowAdmissionModuleSmoke
         project.AddFamily(new Family(familyId, SemanticElementKind.Wall, "Wall family"));
         project.AddElement(element);
 
-        VerifyProvableOverflowFailsBeforeOversizedRoundingAllocation(project);
+        VerifyCertainOverflowMatchesExistingCertainUnderflowAdmissionCost(project);
         VerifyFiniteExponentBoundaryRemainsAdmitted(project);
 
         Console.WriteLine("PASS quantity rule final-overflow admission");
     }
 
-    private static void VerifyProvableOverflowFailsBeforeOversizedRoundingAllocation(SemanticProject project)
+    private static void VerifyCertainOverflowMatchesExistingCertainUnderflowAdmissionCost(SemanticProject project)
     {
         const int factorCount = 4096;
-        // Calibration RED: current production must report the exact allocation consumed by the
-        // provably-overflowing path. This threshold is intentionally impossible until the RED
-        // measurement is captured; it will be replaced by a defensible fixed ceiling before the
-        // production remediation is committed.
-        const long maximumExpectedAllocationBytes = 0;
+        const long maximumAdmissionAllocationSkewBytes = 4096;
+        var overflowCatalog = CreateCatalog("UP", "COUNT.OVERFLOW", factorCount);
+        var underflowCatalog = CreateCatalog("DOWN", "COUNT.UNDERFLOW", factorCount);
+
+        // Warm identical public evaluation paths before measurement so the comparison isolates the
+        // asymmetry after exact magnitude is known rather than JIT/cold-start costs. Both products
+        // use the same significand multiset; only the binary exponent differs. Certain underflow
+        // already rejects immediately after highestBinaryExponent is computed, so certain overflow
+        // must have the same admission shape instead of entering expensive rounding first.
+        ExpectOverflow(() => QuantityRuleEngine.Evaluate(project, underflowCatalog));
+        ExpectOverflow(() => QuantityRuleEngine.Evaluate(project, overflowCatalog));
+
+        var underflowAllocated = MeasureOverflowAllocation(project, underflowCatalog);
+        var overflowAllocated = MeasureOverflowAllocation(project, overflowCatalog);
+        if (overflowAllocated > underflowAllocated + maximumAdmissionAllocationSkewBytes)
+        {
+            throw new InvalidOperationException(
+                $"Provably overflowing quantity-rule product allocated {overflowAllocated.ToString(CultureInfo.InvariantCulture)} bytes versus {underflowAllocated.ToString(CultureInfo.InvariantCulture)} bytes for an equal-significand certain-underflow product; overflow must reject before exact-rational rounding allocation.");
+        }
+    }
+
+    private static QuantityRuleCatalog CreateCatalog(string propertyName, string code, int factorCount)
+    {
         var factors = Enumerable.Range(0, factorCount)
-            .Select(static _ => new QuantityFactor("X", QuantityUnit.Each))
+            .Select(_ => new QuantityFactor(propertyName, QuantityUnit.Each))
             .ToArray();
         var rule = new QuantityRuleDefinition(
             SemanticElementKind.Wall,
-            "COUNT.OVERFLOW",
+            code,
             QuantityDimension.Count,
             factors);
-        var catalog = new QuantityRuleCatalog(new[] { rule });
+        return new QuantityRuleCatalog(new[] { rule });
+    }
 
+    private static long MeasureOverflowAllocation(SemanticProject project, QuantityRuleCatalog catalog)
+    {
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
         var before = GC.GetAllocatedBytesForCurrentThread();
-        try
-        {
-            _ = QuantityRuleEngine.Evaluate(project, catalog);
-            throw new InvalidOperationException("Provably overflowing quantity-rule product must fail closed.");
-        }
-        catch (OverflowException)
-        {
-        }
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        if (allocated > maximumExpectedAllocationBytes)
-            throw new InvalidOperationException(
-                $"Provably overflowing quantity-rule product allocated {allocated.ToString(CultureInfo.InvariantCulture)} bytes before rejection; expected no more than {maximumExpectedAllocationBytes.ToString(CultureInfo.InvariantCulture)} bytes after overflow becomes mathematically certain.");
+        ExpectOverflow(() => QuantityRuleEngine.Evaluate(project, catalog));
+        return GC.GetAllocatedBytesForCurrentThread() - before;
     }
 
     private static void VerifyFiniteExponentBoundaryRemainsAdmitted(SemanticProject project)
@@ -77,5 +89,19 @@ internal static class QuantityRuleOverflowAdmissionModuleSmoke
         var facts = QuantityRuleEngine.Evaluate(project, new QuantityRuleCatalog(new[] { rule }));
         if (facts.Count != 1 || facts[0].Quantity.Value != double.MaxValue)
             throw new InvalidOperationException("Finite highest-binary-exponent 1023 boundary must remain exactly representable.");
+    }
+
+    private static void ExpectOverflow(Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (OverflowException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Expected quantity-rule numeric overflow/underflow rejection.");
     }
 }
