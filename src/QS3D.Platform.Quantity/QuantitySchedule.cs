@@ -230,7 +230,6 @@ public static class QuantityScheduleProjector
 
         public ElementId Id { get; }
         public string Name { get; }
-        public SemanticElementKind ElementKind => Kind;
         public SemanticElementKind Kind { get; }
         public FamilyId FamilyId { get; }
         public FloorId? FloorId { get; }
