@@ -169,16 +169,12 @@ public static class QuantityAccumulator
         if (!advertisedCount.HasValue)
             return;
 
+        RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
         var index = 0;
         using (var enumerator = facts.GetEnumerator())
         {
-            while (true)
+            while (enumerator.MoveNext())
             {
-                RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
-                if (!enumerator.MoveNext())
-                    break;
-                RequireStableKnownCount(facts, advertisedCount, snapshot.Count);
-
                 if (index >= snapshot.Count || !QuantityFactStateEquals(snapshot[index], enumerator.Current))
                     throw new InvalidOperationException("Quantity facts content changed during materialization.");
                 index++;

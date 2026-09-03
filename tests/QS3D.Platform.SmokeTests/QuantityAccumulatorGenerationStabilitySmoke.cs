@@ -13,6 +13,7 @@ internal static class QuantityAccumulatorGenerationStabilitySmoke
         SameCountReorderIsRejected();
         SameCountProvenanceDriftIsRejected();
         StableCountedFactsRemainAccepted();
+        CountObservationsStayBoundedDuringReplay();
         StreamingFactsRemainSinglePassCompatible();
         Console.WriteLine("PASS quantity accumulator generation stability");
     }
@@ -81,6 +82,25 @@ internal static class QuantityAccumulatorGenerationStabilitySmoke
             "stable counted quantity facts changed evidence counts");
     }
 
+    private static void CountObservationsStayBoundedDuringReplay()
+    {
+        var source = new CountBudgetCollection<QuantityFact>(
+            new[]
+            {
+                Fact(ElementId.New(), "WALL.LENGTH", QuantityDimension.Length, 1d),
+                Fact(ElementId.New(), "WALL.LENGTH", QuantityDimension.Length, 2d),
+                Fact(ElementId.New(), "WALL.LENGTH", QuantityDimension.Length, 3d),
+                Fact(ElementId.New(), "WALL.LENGTH", QuantityDimension.Length, 4d)
+            },
+            maximumCountReads: 4);
+
+        var summaries = QuantityAccumulator.Summarize(source);
+        Require(summaries.Count == 1 && summaries[0].FactCount == 4 && summaries[0].Quantity.Value == 10d,
+            "bounded Count observation control changed quantity semantics");
+        Require(source.CountReads <= 4,
+            "quantity fact replay performed unbounded Count observations");
+    }
+
     private static void StreamingFactsRemainSinglePassCompatible()
     {
         var element = ElementId.New();
@@ -146,6 +166,40 @@ internal static class QuantityAccumulatorGenerationStabilitySmoke
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         public bool Contains(T item) => ((ICollection<T>)_first).Contains(item);
         public void CopyTo(T[] array, int arrayIndex) => _first.CopyTo(array, arrayIndex);
+        public void Add(T item) => throw new NotSupportedException();
+        public bool Remove(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+    }
+
+    private sealed class CountBudgetCollection<T> : ICollection<T>
+    {
+        private readonly T[] _items;
+        private readonly int _maximumCountReads;
+        private int _countReads;
+
+        internal CountBudgetCollection(T[] items, int maximumCountReads)
+        {
+            _items = items ?? throw new ArgumentNullException(nameof(items));
+            _maximumCountReads = maximumCountReads;
+        }
+
+        public int Count
+        {
+            get
+            {
+                _countReads++;
+                if (_countReads > _maximumCountReads)
+                    throw new InvalidOperationException("Quantity accumulator exceeded the Count observation budget.");
+                return _items.Length;
+            }
+        }
+
+        internal int CountReads => _countReads;
+        public bool IsReadOnly => true;
+        public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)_items).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item) => ((ICollection<T>)_items).Contains(item);
+        public void CopyTo(T[] array, int arrayIndex) => _items.CopyTo(array, arrayIndex);
         public void Add(T item) => throw new NotSupportedException();
         public bool Remove(T item) => throw new NotSupportedException();
         public void Clear() => throw new NotSupportedException();
