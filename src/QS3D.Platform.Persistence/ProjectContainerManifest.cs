@@ -64,10 +64,10 @@ public sealed class ProjectContainerManifest
         if (projectId == Guid.Empty) throw new ArgumentException("Project ID must not be empty.", nameof(projectId));
         if (payloads is null) throw new ArgumentNullException(nameof(payloads));
 
+        var materializedPayloads = SnapshotGuard.Copy(payloads, nameof(payloads));
         var byName = new Dictionary<string, ProjectContainerPayload>(StringComparer.Ordinal);
-        foreach (var payload in payloads)
+        foreach (var payload in materializedPayloads)
         {
-            if (payload is null) throw new ArgumentException("Container payloads must not contain null entries.", nameof(payloads));
             if (byName.ContainsKey(payload.Name)) throw new InvalidOperationException($"Duplicate container payload '{payload.Name}'.");
             byName.Add(payload.Name, payload);
         }
