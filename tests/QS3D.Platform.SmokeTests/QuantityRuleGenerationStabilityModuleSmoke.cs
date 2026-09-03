@@ -13,6 +13,7 @@ internal static class QuantityRuleGenerationStabilityModuleSmoke
         RejectFactorReplacement();
         RejectFactorReorder();
         RejectCatalogRuleReplacement();
+        RejectCatalogRuleReorder();
         PreserveSinglePassStreamingInputs();
         Console.WriteLine("PASS quantity rule generation stability");
     }
@@ -68,6 +69,25 @@ internal static class QuantityRuleGenerationStabilityModuleSmoke
         ExpectContentDrift(
             () => _ = new QuantityRuleCatalog(source),
             "same-count quantity rule replacement");
+    }
+
+    private static void RejectCatalogRuleReorder()
+    {
+        var first = new QuantityRuleDefinition(
+            SemanticElementKind.Wall,
+            "WALL.A",
+            QuantityDimension.Count);
+        var second = new QuantityRuleDefinition(
+            SemanticElementKind.Wall,
+            "WALL.B",
+            QuantityDimension.Count);
+        var source = new SameCountDriftCollection<QuantityRuleDefinition>(
+            new[] { first, second },
+            new[] { second, first });
+
+        ExpectContentDrift(
+            () => _ = new QuantityRuleCatalog(source),
+            "same-count quantity rule reorder");
     }
 
     private static void PreserveSinglePassStreamingInputs()
