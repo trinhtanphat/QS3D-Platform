@@ -34,7 +34,11 @@ internal static class QuantityRuleOverflowAdmissionModuleSmoke
     private static void VerifyProvableOverflowFailsBeforeOversizedRoundingAllocation(SemanticProject project)
     {
         const int factorCount = 4096;
-        const long maximumExpectedAllocationBytes = 2_000_000;
+        // Calibration RED: current production must report the exact allocation consumed by the
+        // provably-overflowing path. This threshold is intentionally impossible until the RED
+        // measurement is captured; it will be replaced by a defensible fixed ceiling before the
+        // production remediation is committed.
+        const long maximumExpectedAllocationBytes = 0;
         var factors = Enumerable.Range(0, factorCount)
             .Select(static _ => new QuantityFactor("X", QuantityUnit.Each))
             .ToArray();
