@@ -13,7 +13,7 @@ public static class QuantityScheduleCsv
         EnsureOutputRecordCardinality(schedule);
 
         var output = new StringBuilder();
-        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId");
+        output.Append("ElementId,ElementName,Code,Dimension,Value,CanonicalUnit,ElementKind,FamilyId,FamilyName,FloorId,ZoneId,FactCount,ElementCount");
         output.Append(CsvLineEnding);
         foreach (var row in schedule.Rows.OrderBy(static row => row.ElementId.Value))
         {
@@ -26,6 +26,8 @@ public static class QuantityScheduleCsv
                 Append(output, string.Empty);
                 Append(output, string.Empty);
                 AppendProvenance(output, row);
+                Append(output, string.Empty);
+                Append(output, string.Empty, last: true);
                 continue;
             }
 
@@ -38,6 +40,8 @@ public static class QuantityScheduleCsv
                 Append(output, summary.Quantity.Value.ToString("R", CultureInfo.InvariantCulture));
                 Append(output, CanonicalSymbol(summary.Quantity.Dimension));
                 AppendProvenance(output, row);
+                Append(output, summary.FactCount.ToString(CultureInfo.InvariantCulture));
+                Append(output, summary.ElementCount.ToString(CultureInfo.InvariantCulture), last: true);
             }
         }
         return output.ToString();
@@ -57,8 +61,7 @@ public static class QuantityScheduleCsv
             output,
             row.ZoneId.HasValue
                 ? row.ZoneId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
-                : string.Empty,
-            last: true);
+                : string.Empty);
     }
 
     private static void EnsureOutputRecordCardinality(QuantitySchedule schedule)
