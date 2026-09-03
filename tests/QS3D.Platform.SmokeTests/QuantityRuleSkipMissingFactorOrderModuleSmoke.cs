@@ -34,6 +34,7 @@ internal static class QuantityRuleSkipMissingFactorOrderModuleSmoke
 
         VerifySkipMissingIsFactorOrderIndependent(project, missingFirst, invalidFirst);
         VerifyNonSkipModeStillFailsClosed(project, missingFirst, invalidFirst);
+        VerifyCompletePresenceStillRejectsInvalidInput(project, element, missingFirst, invalidFirst);
         VerifyCompleteInputsRemainFactorOrderIndependent(project, element, missingFirst, invalidFirst);
 
         Console.WriteLine("PASS quantity rule skip-missing factor-order determinism");
@@ -85,13 +86,23 @@ internal static class QuantityRuleSkipMissingFactorOrderModuleSmoke
         ExpectInvalidOperation(() => QuantityRuleEngine.Evaluate(project, invalidFirst, skipRuleWhenInputMissing: false));
     }
 
-    private static void VerifyCompleteInputsRemainFactorOrderIndependent(
+    private static void VerifyCompletePresenceStillRejectsInvalidInput(
         SemanticProject project,
         SemanticElement element,
         QuantityRuleCatalog missingFirst,
         QuantityRuleCatalog invalidFirst)
     {
         element.SetProperty("MISSING", "3");
+        ExpectInvalidOperation(() => QuantityRuleEngine.Evaluate(project, missingFirst, skipRuleWhenInputMissing: true));
+        ExpectInvalidOperation(() => QuantityRuleEngine.Evaluate(project, invalidFirst, skipRuleWhenInputMissing: true));
+    }
+
+    private static void VerifyCompleteInputsRemainFactorOrderIndependent(
+        SemanticProject project,
+        SemanticElement element,
+        QuantityRuleCatalog missingFirst,
+        QuantityRuleCatalog invalidFirst)
+    {
         element.SetProperty("INVALID", "2");
 
         var first = QuantityRuleEngine.Evaluate(project, missingFirst, skipRuleWhenInputMissing: true);
@@ -113,6 +124,6 @@ internal static class QuantityRuleSkipMissingFactorOrderModuleSmoke
             return;
         }
 
-        throw new InvalidOperationException("Non-skip quantity rule evaluation must remain fail-closed for incomplete or invalid input.");
+        throw new InvalidOperationException("Quantity rule evaluation must remain fail-closed when invalid input is not masked by a missing required property.");
     }
 }
