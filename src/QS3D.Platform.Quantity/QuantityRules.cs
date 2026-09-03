@@ -202,6 +202,7 @@ internal static class QuantityRuleMaterializer
 
 public static class QuantityRuleEngine
 {
+    private const int MaximumFacts = 100_000;
     private const double TwoTo52 = 4503599627370496d;
     private const double MinimumNormal = 2.2250738585072014e-308d;
 
@@ -220,6 +221,8 @@ public static class QuantityRuleEngine
             {
                 var value = TryEvaluate(element, rule, skipRuleWhenInputMissing, out var missingInput);
                 if (missingInput) continue;
+                if (facts.Count >= MaximumFacts)
+                    throw new InvalidOperationException($"Evaluated quantity facts exceed the supported maximum of {MaximumFacts} entries.");
                 facts.Add(new QuantityFact(
                     element.Id,
                     rule.Code,
