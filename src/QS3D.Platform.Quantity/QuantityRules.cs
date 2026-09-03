@@ -39,7 +39,7 @@ public sealed class QuantityRuleDefinition
         multiplier = Numeric.RequireNonNegativeFinite(multiplier, nameof(multiplier));
         var copiedFactors = factors is null
             ? Array.Empty<QuantityFactor>()
-            : QuantityRuleMaterializer.Materialize(factors, nameof(factors), "quantity rule factors");
+            : QuantityRuleMaterializer.MaterializeStableFactors(factors, nameof(factors), "quantity rule factors");
         if (copiedFactors.Any(static factor => factor is null)) throw new ArgumentException("Quantity rule factors must not contain null entries.", nameof(factors));
 
         var inferred = InferDimension(copiedFactors);
@@ -118,7 +118,7 @@ public sealed class QuantityRuleCatalog
     public QuantityRuleCatalog(IEnumerable<QuantityRuleDefinition> rules)
     {
         if (rules is null) throw new ArgumentNullException(nameof(rules));
-        var copied = QuantityRuleMaterializer.Materialize(rules, nameof(rules), "quantity rule catalog entries");
+        var copied = QuantityRuleMaterializer.MaterializeStableRules(rules, nameof(rules), "quantity rule catalog entries");
         if (copied.Any(static rule => rule is null)) throw new ArgumentException("Quantity rule catalog must not contain null entries.", nameof(rules));
 
         var unique = new HashSet<string>(StringComparer.Ordinal);
@@ -156,10 +156,27 @@ internal static class QuantityRuleMaterializer
 {
     internal const int MaximumEntries = 100_000;
 
-    internal static T[] Materialize<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    internal static QuantityFactor[] MaterializeStableFactors(
+        IEnumerable<QuantityFactor> source,
+        string parameterName,
+        string entryDescription) =>
+        MaterializeStable(source, parameterName, entryDescription, QuantityFactorStateEquals);
+
+    internal static QuantityRuleDefinition[] MaterializeStableRules(
+        IEnumerable<QuantityRuleDefinition> source,
+        string parameterName,
+        string entryDescription) =>
+        MaterializeStable(source, parameterName, entryDescription, QuantityRuleStateEquals);
+
+    private static T[] MaterializeStable<T>(
+        IEnumerable<T> source,
+        string parameterName,
+        string entryDescription,
+        Func<T?, T?, bool> stateEquals)
     {
         if (source is null) throw new ArgumentNullException(parameterName);
         if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+        if (stateEquals is null) throw new ArgumentNullException(nameof(stateEquals));
 
         int? advertisedCount = null;
         CaptureCount(source as ICollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
@@ -177,15 +194,70 @@ internal static class QuantityRuleMaterializer
         if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
             throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
 
-        int? finalCount = null;
-        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
-        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
-        CaptureCount(source as ICollection, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
-        if (advertisedCount.HasValue != finalCount.HasValue
-            || (advertisedCount.HasValue && advertisedCount.Value != finalCount!.Value))
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        RequireStableCount(source, advertisedCount, parameterName, entryDescription);
+        if (!advertisedCount.HasValue)
+            return copied.ToArray();
 
-        return copied.ToArray();
+        var snapshot = copied.ToArray();
+        var index = 0;
+        using (var enumerator = source.GetEnumerator())
+        {
+            while (enumerator.MoveNext())
+            {
+                if (index >= snapshot.Length || !stateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+        RequireStableCount(source, advertisedCount, parameterName, entryDescription);
+        return snapshot;
+    }
+
+    private static void RequireStableCount<T>(
+        IEnumerable<T> source,
+        int? advertisedCount,
+        string parameterName,
+        string entryDescription)
+    {
+        int? observedCount = null;
+        CaptureCount(source as ICollection<T>, static collection => collection.Count, ref observedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref observedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref observedCount, parameterName, entryDescription);
+        if (advertisedCount.HasValue != observedCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != observedCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+    }
+
+    private static bool QuantityFactorStateEquals(QuantityFactor? left, QuantityFactor? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        return string.Equals(left.PropertyName, right.PropertyName, StringComparison.Ordinal)
+            && left.Unit == right.Unit
+            && left.Exponent == right.Exponent;
+    }
+
+    private static bool QuantityRuleStateEquals(QuantityRuleDefinition? left, QuantityRuleDefinition? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        if (left.ElementKind != right.ElementKind
+            || !string.Equals(left.Code, right.Code, StringComparison.Ordinal)
+            || left.OutputDimension != right.OutputDimension
+            || !left.Multiplier.Equals(right.Multiplier)
+            || !string.Equals(left.Description, right.Description, StringComparison.Ordinal)
+            || left.Factors.Count != right.Factors.Count)
+            return false;
+
+        for (var index = 0; index < left.Factors.Count; index++)
+        {
+            if (!QuantityFactorStateEquals(left.Factors[index], right.Factors[index]))
+                return false;
+        }
+        return true;
     }
 
     private static void CaptureCount<TCollection>(
