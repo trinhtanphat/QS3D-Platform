@@ -185,6 +185,14 @@ public sealed class SemanticProject
             throw new InvalidOperationException("Element family must belong to the project before the element is added.");
         if (family.Kind != element.Kind)
             throw new InvalidOperationException($"Element kind {element.Kind} does not match family kind {family.Kind}.");
+
+        var floorId = element.FloorId;
+        if (floorId.HasValue && !_floors.ContainsKey(floorId.Value))
+            throw new InvalidOperationException("Element floor must belong to the project before the element is added.");
+        var zoneId = element.ZoneId;
+        if (zoneId.HasValue && !_zones.ContainsKey(zoneId.Value))
+            throw new InvalidOperationException("Element zone must belong to the project before the element is added.");
+
         _elements.Add(element.Id, element);
     }
 }
