@@ -162,7 +162,7 @@ public static class QuantityScheduleProjector
             throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
         var elements = elementSnapshots.ToDictionary(static element => element.Id);
-        var copiedFacts = QuantityScheduleMaterializer.Materialize(facts, nameof(facts), "quantity facts");
+        var copiedFacts = QuantityScheduleMaterializer.MaterializeStableQuantityFacts(facts, nameof(facts), "quantity facts");
         if (copiedFacts.Any(static fact => fact is null)) throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
         var factsByElement = new Dictionary<ElementId, List<QuantityFact>>();
         foreach (var fact in copiedFacts)
@@ -272,6 +272,82 @@ internal static class QuantityScheduleMaterializer
             throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
 
         return result.ToArray();
+    }
+
+    internal static QuantityFact[] MaterializeStableQuantityFacts(
+        IEnumerable<QuantityFact> source,
+        string parameterName,
+        string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        int? advertisedCount = null;
+        CaptureCount(source as ICollection<QuantityFact>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+
+        var result = advertisedCount.HasValue ? new List<QuantityFact>(advertisedCount.Value) : new List<QuantityFact>();
+        foreach (var fact in source)
+        {
+            if (result.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            result.Add(fact);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        RequireStableKnownCount(source, advertisedCount, result.Count, parameterName, entryDescription);
+        if (!advertisedCount.HasValue)
+            return result.ToArray();
+
+        var snapshot = result.ToArray();
+        var index = 0;
+        using (var enumerator = source.GetEnumerator())
+        {
+            while (enumerator.MoveNext())
+            {
+                if (index >= snapshot.Length || !QuantityFactStateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+        RequireStableKnownCount(source, advertisedCount, snapshot.Length, parameterName, entryDescription);
+        return snapshot;
+    }
+
+    private static bool QuantityFactStateEquals(QuantityFact? left, QuantityFact? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        return left.ElementId.Equals(right.ElementId)
+            && StringComparer.Ordinal.Equals(left.Code, right.Code)
+            && left.Quantity.Equals(right.Quantity)
+            && Nullable.Equals(left.SourceReference, right.SourceReference);
+    }
+
+    private static void RequireStableKnownCount(
+        IEnumerable<QuantityFact> source,
+        int? advertisedCount,
+        int materializedCount,
+        string parameterName,
+        string entryDescription)
+    {
+        int? currentCount = null;
+        CaptureCount(source as ICollection<QuantityFact>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+
+        if (currentCount.HasValue && currentCount.Value != materializedCount)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        if (advertisedCount.HasValue != currentCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != currentCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
     }
 
     private static void CaptureCount<TCollection>(
