@@ -38,7 +38,7 @@ public sealed class QuantityScheduleRow
         if (string.IsNullOrWhiteSpace(familyName)) throw new ArgumentException("Family name must not be blank.", nameof(familyName));
         if (sourceReference.HasValue) ValidateSourceReference(sourceReference.Value, nameof(sourceReference));
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
-        var copiedQuantities = QuantityScheduleMaterializer.Materialize(quantities, nameof(quantities), "schedule quantities");
+        var copiedQuantities = QuantityScheduleMaterializer.MaterializeStableQuantitySummaries(quantities, nameof(quantities), "schedule quantities");
         if (copiedQuantities.Any(static quantity => quantity is null)) throw new ArgumentException("Schedule quantities must not contain null entries.", nameof(quantities));
         EnsureRowLocalSummaryAffinity(copiedQuantities);
         EnsureUniqueQuantityKeys(copiedQuantities);
@@ -274,6 +274,52 @@ internal static class QuantityScheduleMaterializer
         return result.ToArray();
     }
 
+    internal static QuantitySummary[] MaterializeStableQuantitySummaries(
+        IEnumerable<QuantitySummary> source,
+        string parameterName,
+        string entryDescription)
+    {
+        if (source is null) throw new ArgumentNullException(parameterName);
+        if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
+
+        int? advertisedCount = null;
+        CaptureCount(source as ICollection<QuantitySummary>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantitySummary>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
+
+        var result = advertisedCount.HasValue ? new List<QuantitySummary>(advertisedCount.Value) : new List<QuantitySummary>();
+        foreach (var summary in source)
+        {
+            if (result.Count >= MaximumEntries)
+                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+            result.Add(summary);
+        }
+
+        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        RequireStableKnownSummaryCount(source, advertisedCount, result.Count, parameterName, entryDescription);
+        if (!advertisedCount.HasValue)
+            return result.ToArray();
+
+        var snapshot = result.ToArray();
+        var index = 0;
+        using (var enumerator = source.GetEnumerator())
+        {
+            while (enumerator.MoveNext())
+            {
+                if (index >= snapshot.Length || !QuantitySummaryStateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+        RequireStableKnownSummaryCount(source, advertisedCount, snapshot.Length, parameterName, entryDescription);
+        return snapshot;
+    }
+
     internal static QuantityFact[] MaterializeStableQuantityFacts(
         IEnumerable<QuantityFact> source,
         string parameterName,
@@ -320,6 +366,17 @@ internal static class QuantityScheduleMaterializer
         return snapshot;
     }
 
+    private static bool QuantitySummaryStateEquals(QuantitySummary? left, QuantitySummary? right)
+    {
+        if (left is null || right is null)
+            return left is null && right is null;
+
+        return StringComparer.Ordinal.Equals(left.Code, right.Code)
+            && left.Quantity.Equals(right.Quantity)
+            && left.FactCount == right.FactCount
+            && left.ElementCount == right.ElementCount;
+    }
+
     private static bool QuantityFactStateEquals(QuantityFact? left, QuantityFact? right)
     {
         if (left is null || right is null)
@@ -329,6 +386,25 @@ internal static class QuantityScheduleMaterializer
             && StringComparer.Ordinal.Equals(left.Code, right.Code)
             && left.Quantity.Equals(right.Quantity)
             && Nullable.Equals(left.SourceReference, right.SourceReference);
+    }
+
+    private static void RequireStableKnownSummaryCount(
+        IEnumerable<QuantitySummary> source,
+        int? advertisedCount,
+        int materializedCount,
+        string parameterName,
+        string entryDescription)
+    {
+        int? currentCount = null;
+        CaptureCount(source as ICollection<QuantitySummary>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as IReadOnlyCollection<QuantitySummary>, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+        CaptureCount(source as ICollection, static collection => collection.Count, ref currentCount, parameterName, entryDescription);
+
+        if (currentCount.HasValue && currentCount.Value != materializedCount)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        if (advertisedCount.HasValue != currentCount.HasValue
+            || (advertisedCount.HasValue && advertisedCount.Value != currentCount!.Value))
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
     }
 
     private static void RequireStableKnownCount(
