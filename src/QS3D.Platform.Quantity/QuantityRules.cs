@@ -241,6 +241,18 @@ public static class QuantityRuleEngine
         out bool missingInput)
     {
         missingInput = false;
+        if (skipRuleWhenInputMissing)
+        {
+            foreach (var factor in rule.Factors)
+            {
+                if (!element.Properties.ContainsKey(factor.PropertyName))
+                {
+                    missingInput = true;
+                    return 0d;
+                }
+            }
+        }
+
         var productFactors = new List<double>(1 + rule.Factors.Count * 3);
         productFactors.Add(rule.Multiplier);
         long decimalScalePower = 0;
