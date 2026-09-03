@@ -70,8 +70,8 @@ static void SemanticHealthReferences()
     var project = new SemanticProject(ProjectId.New(), "Health");
     project.AddFamily(family);
     var element = new SemanticElement(ElementId.New(), SemanticElementKind.Wall, "W1", family.Id);
-    element.AssignLocation(FloorId.New(), ZoneId.New());
     project.AddElement(element);
+    element.AssignLocation(FloorId.New(), ZoneId.New());
     var report = SemanticHealthAnalyzer.Analyze(project);
     Require(!report.IsReady, "missing floor and zone references must block readiness");
     Equal(2, report.ErrorCount);
