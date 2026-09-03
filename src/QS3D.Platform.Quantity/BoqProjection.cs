@@ -139,17 +139,16 @@ public sealed class BoqProjection
 
     private static void EnsureUniqueLineKeys(IEnumerable<BoqLine> lines)
     {
-        var dimensionsByCode = new Dictionary<string, HashSet<QuantityDimension>>(StringComparer.Ordinal);
+        var dimensionByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
         foreach (var line in lines)
         {
-            if (!dimensionsByCode.TryGetValue(line.Code, out var dimensions))
+            if (dimensionByCode.TryGetValue(line.Code, out var existingDimension))
             {
-                dimensions = new HashSet<QuantityDimension>();
-                dimensionsByCode.Add(line.Code, dimensions);
-            }
-
-            if (!dimensions.Add(line.Quantity.Dimension))
+                if (existingDimension != line.Quantity.Dimension)
+                    throw new InvalidOperationException($"BQ code '{line.Code}' is declared with both {existingDimension} and {line.Quantity.Dimension} dimensions.");
                 throw new InvalidOperationException($"Duplicate BQ line for '{line.Code}'/{line.Quantity.Dimension}.");
+            }
+            dimensionByCode.Add(line.Code, line.Quantity.Dimension);
         }
     }
 }
@@ -181,10 +180,20 @@ public static class BoqProjector
             throw new ArgumentException("BQ quantity summaries must not contain null entries.", nameof(quantities));
 
         var rateMap = new Dictionary<RateKey, UnitRate>(RateKeyComparer.Instance);
+        var rateDimensionByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
         foreach (var rate in copiedRates)
         {
             if (!StringComparer.Ordinal.Equals(rate.Currency, normalizedCurrency))
                 throw new InvalidOperationException($"Rate '{rate.QuantityCode}' uses {rate.Currency}, expected {normalizedCurrency}.");
+            if (rateDimensionByCode.TryGetValue(rate.QuantityCode, out var existingRateDimension))
+            {
+                if (existingRateDimension != rate.Dimension)
+                    throw new InvalidOperationException($"Rate code '{rate.QuantityCode}' is declared with both {existingRateDimension} and {rate.Dimension} dimensions.");
+            }
+            else
+            {
+                rateDimensionByCode.Add(rate.QuantityCode, rate.Dimension);
+            }
             var key = new RateKey(rate.QuantityCode, rate.Dimension);
             if (rateMap.ContainsKey(key))
                 throw new InvalidOperationException($"Duplicate unit rate for '{rate.QuantityCode}'/{rate.Dimension}.");
@@ -193,8 +202,18 @@ public static class BoqProjector
 
         var lines = new List<BoqLine>();
         var quantityKeys = new HashSet<RateKey>(RateKeyComparer.Instance);
+        var quantityDimensionByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
         foreach (var quantity in copiedQuantities)
         {
+            if (quantityDimensionByCode.TryGetValue(quantity.Code, out var existingQuantityDimension))
+            {
+                if (existingQuantityDimension != quantity.Quantity.Dimension)
+                    throw new InvalidOperationException($"Quantity code '{quantity.Code}' is declared with both {existingQuantityDimension} and {quantity.Quantity.Dimension} dimensions.");
+            }
+            else
+            {
+                quantityDimensionByCode.Add(quantity.Code, quantity.Quantity.Dimension);
+            }
             var key = new RateKey(quantity.Code, quantity.Quantity.Dimension);
             if (!quantityKeys.Add(key))
                 throw new InvalidOperationException($"Duplicate quantity summary for '{quantity.Code}'/{quantity.Quantity.Dimension}.");
