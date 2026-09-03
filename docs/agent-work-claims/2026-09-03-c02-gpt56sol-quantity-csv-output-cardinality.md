@@ -1,6 +1,6 @@
 # Work claim — C02 quantity CSV output cardinality
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T12:15:00+07:00`
 - Baseline main SHA: `f32e9ccded477ee5f567337745eb8bcce9f9a444`
@@ -20,13 +20,11 @@ Bound aggregate CSV data-record cardinality before body generation so individual
 ## Excluded scope
 CSV import (none exists), XLSX/IFC/BCF feature invention, Quantity arithmetic, BOQ/commercial math, Domain/Core persistence, UI, MCP, installer/release.
 
-## Validation plan
-1. deterministic RED at the real 100,000-record boundary;
-2. exact boundary remains admitted and record 100,001 fails closed;
-3. preflight aggregate output count using overflow-safe arithmetic before allocating/writing CSV body;
-4. populated summaries count one record each and intentionally empty rows count one record each;
-5. preserve ordering, formula-injection neutralization, canonical CRLF and #165 empty-row fidelity;
-6. exact-head and exact-main CI GREEN before completion.
+## Validation evidence
+- RED regression-only head: `bab5edff7aed612682c7e18cc8f62382fa20f594`, CI `33718245928` FAILURE.
+- GREEN exact implementation head: `9086f28517de1851f1d7f67cc8f7cc79b20868e2`, CI `33718322758` SUCCESS.
+- Implementation merge commit: `7b7cc60d3d42f95e30985be41405b7391eadca0a`.
+- Exact-main CI: `33718382159` SUCCESS on `7b7cc60d3d42f95e30985be41405b7391eadca0a`.
 
 ## Completion condition
-Implementation merged to current main with fresh exact-head GREEN and exact-main GREEN evidence, then claim terminalized.
+Satisfied: aggregate CSV record count is preflighted before body allocation, exactly 100,000 records remain admitted, record 100,001 fails closed, empty-row and spreadsheet-safety semantics remain intact, and exact-main CI is green.
