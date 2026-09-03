@@ -386,6 +386,8 @@ public static class QuantityRuleEngine
         var rationalExponent = FloorLog2Ratio(numerator, denominator);
         var highestBinaryExponent = binaryExponent + rationalExponent;
 
+        if (highestBinaryExponent > 1023L)
+            throw new OverflowException($"Quantity rule '{ruleCode}' result overflowed for element '{elementName}'.");
         if (highestBinaryExponent < -1075L)
             throw new OverflowException($"Quantity rule '{ruleCode}' result underflowed for element '{elementName}'.");
 
