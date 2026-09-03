@@ -97,6 +97,8 @@ public static class QuantityScheduleProjector
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (facts is null) throw new ArgumentNullException(nameof(facts));
+        if (includeElementsWithoutQuantities && project.Elements.Count > QuantityScheduleMaterializer.MaximumEntries)
+            throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
         var elements = project.Elements.ToDictionary(static element => element.Id);
         var copiedFacts = QuantityScheduleMaterializer.Materialize(facts, nameof(facts), "quantity facts");
