@@ -18,6 +18,8 @@ internal static class QuantityRuleUnitScaleProductModuleSmoke
             familyId);
         element.SetProperty("ExtremeMass", 1e308d.ToString("R", CultureInfo.InvariantCulture));
         element.SetProperty("SubnormalVolume", double.Epsilon.ToString("R", CultureInfo.InvariantCulture));
+        element.SetProperty("ExtremeLength", 1e308d.ToString("R", CultureInfo.InvariantCulture));
+        element.SetProperty("SubnormalLength", double.Epsilon.ToString("R", CultureInfo.InvariantCulture));
 
         var project = new SemanticProject(
             new ProjectId(Guid.Parse("794ddbf6-5b62-4a87-b879-4569996c098a")),
@@ -43,6 +45,25 @@ internal static class QuantityRuleUnitScaleProductModuleSmoke
         if (!(expectedVolume > 0d) || !double.IsFinite(expectedVolume))
             throw new InvalidOperationException("Smoke fixture failed to construct a representable expected subnormal-volume product.");
         AssertRelative("balanced cubic-millimeter scale", balancedVolume, expectedVolume, 1e-12d);
+
+        var scaleFirst = Evaluate(
+            project,
+            "AREA.SCALE.FIRST",
+            QuantityDimension.Area,
+            1d,
+            new QuantityFactor("SubnormalLength", QuantityUnit.Millimeter),
+            new QuantityFactor("ExtremeLength", QuantityUnit.Meter));
+        var scaleSecond = Evaluate(
+            project,
+            "AREA.SCALE.SECOND",
+            QuantityDimension.Area,
+            1d,
+            new QuantityFactor("ExtremeLength", QuantityUnit.Meter),
+            new QuantityFactor("SubnormalLength", QuantityUnit.Millimeter));
+        var expectedArea = (double.Epsilon * 1e308d) * 1e-3d;
+        AssertRelative("balanced unit scale with compensating factor", scaleFirst, expectedArea, 1e-12d);
+        if (!scaleFirst.Equals(scaleSecond))
+            throw new InvalidOperationException($"Equivalent unit-scale factor permutations diverged: {scaleFirst:R} vs {scaleSecond:R}.");
 
         ExpectOverflow("standalone tonne conversion remains fail-closed", () =>
             QuantityUnits.ToCanonical(1e308d, QuantityUnit.Tonne));
@@ -72,13 +93,13 @@ internal static class QuantityRuleUnitScaleProductModuleSmoke
         string code,
         QuantityDimension dimension,
         double multiplier,
-        QuantityFactor factor)
+        params QuantityFactor[] factors)
     {
         var rule = new QuantityRuleDefinition(
             SemanticElementKind.Wall,
             code,
             dimension,
-            new[] { factor },
+            factors,
             multiplier);
         var facts = QuantityRuleEngine.Evaluate(project, new QuantityRuleCatalog(new[] { rule }));
         return facts.Single().Quantity.Value;
