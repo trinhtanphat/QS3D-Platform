@@ -15,6 +15,17 @@ public static class QuantityScheduleCsv
         output.Append(CsvLineEnding);
         foreach (var row in schedule.Rows.OrderBy(static row => row.ElementId.Value))
         {
+            if (row.Quantities.Count == 0)
+            {
+                Append(output, row.ElementId.Value.ToString("D", CultureInfo.InvariantCulture));
+                Append(output, NeutralizeSpreadsheetActiveText(row.ElementName));
+                Append(output, string.Empty);
+                Append(output, string.Empty);
+                Append(output, string.Empty);
+                Append(output, string.Empty, last: true);
+                continue;
+            }
+
             foreach (var summary in row.Quantities.OrderBy(static summary => summary.Code, StringComparer.Ordinal))
             {
                 Append(output, row.ElementId.Value.ToString("D", CultureInfo.InvariantCulture));
