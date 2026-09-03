@@ -67,7 +67,7 @@ public static class QuantityUnits
     public static double ToCanonical(double value, QuantityUnit unit)
     {
         value = Numeric.RequireNonNegativeFinite(value, nameof(value));
-        var result = value * ScaleToCanonical(unit);
+        var result = ScaleByDecimalPower(value, ScalePowerToCanonical(unit));
         if (!Numeric.IsFinite(result) || (value != 0d && result == 0d))
             throw new OverflowException(value.ToString("R", CultureInfo.InvariantCulture) + " " + Symbol(unit) + " cannot be represented in canonical units.");
         return result == 0d ? 0d : result;
@@ -76,7 +76,7 @@ public static class QuantityUnits
     public static double FromCanonical(double canonicalValue, QuantityUnit unit)
     {
         canonicalValue = Numeric.RequireNonNegativeFinite(canonicalValue, nameof(canonicalValue));
-        var result = canonicalValue / ScaleToCanonical(unit);
+        var result = ScaleByDecimalPower(canonicalValue, -ScalePowerToCanonical(unit));
         if (!Numeric.IsFinite(result) || (canonicalValue != 0d && result == 0d))
             throw new OverflowException("Canonical value " + canonicalValue.ToString("R", CultureInfo.InvariantCulture) + " cannot be represented as " + Symbol(unit) + ".");
         return result == 0d ? 0d : result;
@@ -85,24 +85,44 @@ public static class QuantityUnits
     public static QuantityValue ToQuantityValue(double value, QuantityUnit unit)
         => new QuantityValue(DimensionOf(unit), ToCanonical(value, unit));
 
-    private static double ScaleToCanonical(QuantityUnit unit)
+    private static int ScalePowerToCanonical(QuantityUnit unit)
     {
         switch (unit)
         {
-            case QuantityUnit.Each: return 1d;
-            case QuantityUnit.Millimeter: return 1e-3d;
-            case QuantityUnit.Centimeter: return 1e-2d;
-            case QuantityUnit.Meter: return 1d;
-            case QuantityUnit.SquareMillimeter: return 1e-6d;
-            case QuantityUnit.SquareCentimeter: return 1e-4d;
-            case QuantityUnit.SquareMeter: return 1d;
-            case QuantityUnit.CubicMillimeter: return 1e-9d;
-            case QuantityUnit.CubicCentimeter: return 1e-6d;
-            case QuantityUnit.CubicMeter: return 1d;
-            case QuantityUnit.Gram: return 1e-3d;
-            case QuantityUnit.Kilogram: return 1d;
-            case QuantityUnit.Tonne: return 1e3d;
+            case QuantityUnit.Each: return 0;
+            case QuantityUnit.Millimeter: return -3;
+            case QuantityUnit.Centimeter: return -2;
+            case QuantityUnit.Meter: return 0;
+            case QuantityUnit.SquareMillimeter: return -6;
+            case QuantityUnit.SquareCentimeter: return -4;
+            case QuantityUnit.SquareMeter: return 0;
+            case QuantityUnit.CubicMillimeter: return -9;
+            case QuantityUnit.CubicCentimeter: return -6;
+            case QuantityUnit.CubicMeter: return 0;
+            case QuantityUnit.Gram: return -3;
+            case QuantityUnit.Kilogram: return 0;
+            case QuantityUnit.Tonne: return 3;
             default: throw new ArgumentOutOfRangeException(nameof(unit), unit, "Unsupported quantity unit.");
+        }
+    }
+
+    private static double ScaleByDecimalPower(double value, int power)
+    {
+        if (power == 0) return value;
+        var factor = ExactPowerOfTen(Math.Abs(power));
+        return power < 0 ? value / factor : value * factor;
+    }
+
+    private static double ExactPowerOfTen(int power)
+    {
+        switch (power)
+        {
+            case 2: return 100d;
+            case 3: return 1_000d;
+            case 4: return 10_000d;
+            case 6: return 1_000_000d;
+            case 9: return 1_000_000_000d;
+            default: throw new ArgumentOutOfRangeException(nameof(power), power, "Unsupported quantity decimal scale power.");
         }
     }
 }
