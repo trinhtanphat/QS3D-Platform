@@ -1,6 +1,6 @@
 # Work claim — Quantity CSV spreadsheet-safety hardening
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol-20260903`
 - Registered: `2026-09-03T00:34:25+07:00`
 - Baseline main SHA: `b9592366909df8e8d44ef01cf574507bf96787d9`
@@ -25,14 +25,16 @@ Harden host-neutral quantity schedule CSV export against spreadsheet formula inj
 - native BricsCAD/AutoCAD runtime behavior
 - release/install/CI infrastructure
 
-## Validation plan
+## Validation evidence
 
-- prove current CSV output leaves formula-leading untrusted text executable in spreadsheet consumers
-- cover `=`, `+`, `-`, `@`, leading whitespace before formula markers, quoting, embedded quotes/newlines and benign values
-- preserve invariant-culture numeric output, canonical units and deterministic row ordering
-- run focused smoke and repository validation available to the session
-- self-review for compatibility and data-integrity effects
+- Regression-only head: `8a4bb941a56876f015e3d1564842ae13297b29e7`.
+- RED CI: `33662507829` — FAILURE in `QuantityScheduleCsvSecurityModuleSmoke` before production hardening.
+- Final implementation head: `3f84fd89d1104177eccbbdfc78554f5bb2063d6e`.
+- Exact-head CI: `33662722475` — SUCCESS.
+- Implementation PR: `#43`.
+- Implementation merge commit: `b48963aa602e52e94f1864e503612267e093b468`.
+- Exact implementation-main CI: `33667471287` — SUCCESS.
 
 ## Completion condition
 
-Untrusted textual CSV cells are deterministically neutralized for spreadsheet consumers, benign CSV semantics remain stable, regression coverage passes, the implementation is integrated through the repository PR path, and the claim is marked terminal after exact-main verification.
+Satisfied: spreadsheet-active untrusted textual CSV cells are neutralized, embedded/record line endings are deterministic CRLF, benign CSV semantics and invariant quantity serialization remain stable, implementation was merged through PR #43, and exact merged-main validation is GREEN.
