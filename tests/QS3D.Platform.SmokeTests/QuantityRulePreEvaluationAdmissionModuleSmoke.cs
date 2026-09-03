@@ -22,11 +22,19 @@ internal static class QuantityRulePreEvaluationAdmissionModuleSmoke
         var project = new SemanticProject(ProjectId.New(), "Pre-evaluation admission");
         project.AddFamily(family);
 
-        var first = new SemanticElement(ElementId.New(), SemanticElementKind.Wall, "W1", family.Id);
+        var first = new SemanticElement(
+            new ElementId(new Guid("00000000-0000-0000-0000-000000000001")),
+            SemanticElementKind.Wall,
+            "W1",
+            family.Id);
         first.SetProperty("Length", "1");
         project.AddElement(first);
 
-        var second = new SemanticElement(ElementId.New(), SemanticElementKind.Wall, "W2", family.Id);
+        var second = new SemanticElement(
+            new ElementId(new Guid("00000000-0000-0000-0000-000000000002")),
+            SemanticElementKind.Wall,
+            "W2",
+            family.Id);
         second.SetProperty("Length", "not-a-number");
         project.AddElement(second);
 
