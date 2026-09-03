@@ -227,7 +227,7 @@ public static class QuantityRuleEngine
                     element.SourceReference));
             }
         }
-        return facts;
+        return facts.AsReadOnly();
     }
 
     private static double TryEvaluate(
