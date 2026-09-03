@@ -48,7 +48,7 @@ public sealed class QuantityRuleDefinition
         ElementKind = elementKind;
         Code = code.Trim();
         OutputDimension = outputDimension;
-        Factors = copiedFactors;
+        Factors = Array.AsReadOnly(copiedFactors);
         Multiplier = multiplier;
         Description = description is null || string.IsNullOrWhiteSpace(description) ? null : description.Trim();
     }
@@ -110,6 +110,7 @@ public sealed class QuantityRuleDefinition
 public sealed class QuantityRuleCatalog
 {
     private readonly QuantityRuleDefinition[] _rules;
+    private readonly IReadOnlyList<QuantityRuleDefinition> _rulesView;
 
     public QuantityRuleCatalog(IEnumerable<QuantityRuleDefinition> rules)
     {
@@ -131,14 +132,15 @@ public sealed class QuantityRuleCatalog
         _rules = copied.OrderBy(static rule => rule.ElementKind)
             .ThenBy(static rule => rule.Code, StringComparer.Ordinal)
             .ToArray();
+        _rulesView = Array.AsReadOnly(_rules);
     }
 
-    public IReadOnlyList<QuantityRuleDefinition> Rules => _rules;
+    public IReadOnlyList<QuantityRuleDefinition> Rules => _rulesView;
 
     public IReadOnlyList<QuantityRuleDefinition> ForKind(SemanticElementKind kind)
     {
         if (kind == SemanticElementKind.Unknown || !Enum.IsDefined(typeof(SemanticElementKind), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
-        return _rules.Where(rule => rule.ElementKind == kind).ToArray();
+        return Array.AsReadOnly(_rules.Where(rule => rule.ElementKind == kind).ToArray());
     }
 }
 
