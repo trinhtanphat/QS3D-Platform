@@ -240,7 +240,7 @@ public static class QuantityRuleEngine
         out bool missingInput)
     {
         missingInput = false;
-        var productFactors = new List<double>(1 + rule.Factors.Count * 3);
+        var productFactors = new List<double>(1 + rule.Factors.Count * 6);
         productFactors.Add(rule.Multiplier);
 
         foreach (var factor in rule.Factors)
@@ -258,9 +258,12 @@ public static class QuantityRuleEngine
             if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) || !Numeric.IsFinite(parsed) || parsed < 0d)
                 throw new InvalidOperationException($"Element '{element.Name}' property '{factor.PropertyName}' must be a non-negative finite invariant-culture number for quantity rule '{rule.Code}'.");
 
-            var canonical = QuantityUnits.ToCanonical(parsed, factor.Unit);
+            var canonicalScale = QuantityUnits.ToCanonical(1d, factor.Unit);
             for (var i = 0; i < factor.Exponent; i++)
-                productFactors.Add(canonical);
+            {
+                productFactors.Add(parsed);
+                productFactors.Add(canonicalScale);
+            }
         }
 
         return MultiplyCanonicalFactors(productFactors, rule.Code, element.Name);
