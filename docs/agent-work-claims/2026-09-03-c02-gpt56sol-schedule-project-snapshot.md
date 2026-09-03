@@ -1,6 +1,6 @@
 # C02 reservation — quantity schedule project snapshot
 
-Status: ACTIVE
+Status: COMPLETED
 Lane-Key: issue-203
 Issue: #203
 Canonical owner/session: account:trinhtanphat|session:gpt56sol-c02-20260903-schedule-project-snapshot
@@ -29,5 +29,14 @@ No Domain/Persistence implementation changes, Workspace UI, MCP transport/runtim
 - exact-head and exact-main authoritative Platform CI;
 - self-review snapshot depth, mutable reference leakage, compatibility, ordering, maximum-record arithmetic and evidence fidelity.
 
+## Completion evidence
+- Reservation claim PR #204 merged after exact-head Platform CI 33731889533 GREEN; claim was visible on main at `c225de1ca6012d35ce65cb14180032868261d654`.
+- Deterministic RED: Platform CI 33732085682 on `6d8155ee01bd621d69d72e96c5a4e93130831a3a`; Platform build succeeded with 0 warnings / 0 errors, then the new smoke failed because live source provenance changed during hostile fact enumeration.
+- Exact production head GREEN: Platform CI 33732325679 on `f3e713c4a54a07dfe94f56ce4886f1388f011e06`.
+- Production PR: #205.
+- Production merge commit: `2e3f282555c8c45bb1ce921bb8e5332d2e567c87`.
+- Exact production-main GREEN: Platform CI 33732408050 on `2e3f282555c8c45bb1ce921bb8e5332d2e567c87`.
+- Issue #203 closed as completed after exact-main verification.
+
 ## Completion condition
-Production carrier merged, exact-main Platform CI green, issue closed/completed and reservation terminalized.
+Satisfied: production carrier merged, exact-main Platform CI green, issue closed/completed and reservation terminalized by this claim-only closeout.
