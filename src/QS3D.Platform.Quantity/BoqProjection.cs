@@ -108,7 +108,11 @@ public sealed class BoqProjection
     {
         if (lines is null) throw new ArgumentNullException(nameof(lines));
         Currency = new Money(0m, currency).Currency;
-        var copiedLines = BoqInputMaterializer.Materialize(lines, nameof(lines), "BQ lines");
+        var copiedLines = BoqInputMaterializer.Materialize(
+            lines,
+            nameof(lines),
+            "BQ lines",
+            BoqInputMaterializer.BoqLineStateEquals);
         if (copiedLines.Any(static line => line is null))
             throw new ArgumentException("BQ lines must not contain null entries.", nameof(lines));
         EnsureUniqueLineKeys(copiedLines);
@@ -161,10 +165,18 @@ public static class BoqProjector
         if (quantities is null) throw new ArgumentNullException(nameof(quantities));
         if (rates is null) throw new ArgumentNullException(nameof(rates));
         var normalizedCurrency = new Money(0m, currency).Currency;
-        var copiedRates = BoqInputMaterializer.Materialize(rates, nameof(rates), "BQ unit rates");
+        var copiedRates = BoqInputMaterializer.Materialize(
+            rates,
+            nameof(rates),
+            "BQ unit rates",
+            BoqInputMaterializer.UnitRateStateEquals);
         if (copiedRates.Any(static rate => rate is null))
             throw new ArgumentException("BQ unit rates must not contain null entries.", nameof(rates));
-        var copiedQuantities = BoqInputMaterializer.Materialize(quantities, nameof(quantities), "BQ quantity summaries");
+        var copiedQuantities = BoqInputMaterializer.Materialize(
+            quantities,
+            nameof(quantities),
+            "BQ quantity summaries",
+            BoqInputMaterializer.QuantitySummaryStateEquals);
         if (copiedQuantities.Any(static quantity => quantity is null))
             throw new ArgumentException("BQ quantity summaries must not contain null entries.", nameof(quantities));
 
@@ -228,7 +240,11 @@ internal static class BoqInputMaterializer
 {
     internal const int MaximumEntries = 100_000;
 
-    internal static T[] Materialize<T>(IEnumerable<T> source, string parameterName, string entryDescription)
+    internal static T[] Materialize<T>(
+        IEnumerable<T> source,
+        string parameterName,
+        string entryDescription,
+        Func<T, T, bool>? generationStateEquals = null)
     {
         if (source is null) throw new ArgumentNullException(parameterName);
         if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
@@ -250,7 +266,57 @@ internal static class BoqInputMaterializer
             || (advertisedCount.HasValue && advertisedCount.Value != finalCount!.Value))
             throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
 
-        return result.ToArray();
+        var snapshot = result.ToArray();
+        if (!advertisedCount.HasValue || generationStateEquals is null)
+            return snapshot;
+
+        var index = 0;
+        using (var enumerator = source.GetEnumerator())
+        {
+            while (enumerator.MoveNext())
+            {
+                if (index >= snapshot.Length || !generationStateEquals(snapshot[index], enumerator.Current))
+                    throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+                index++;
+            }
+        }
+
+        if (index != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
+
+        var replayCount = CaptureCurrentCount(source, parameterName, entryDescription);
+        if (!replayCount.HasValue || replayCount.Value != advertisedCount.Value || replayCount.Value != snapshot.Length)
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        return snapshot;
+    }
+
+    internal static bool UnitRateStateEquals(UnitRate left, UnitRate right)
+    {
+        if (left is null || right is null) return left is null && right is null;
+        return StringComparer.Ordinal.Equals(left.QuantityCode, right.QuantityCode)
+            && left.Dimension == right.Dimension
+            && left.AmountPerCanonicalUnit == right.AmountPerCanonicalUnit
+            && StringComparer.Ordinal.Equals(left.Currency, right.Currency);
+    }
+
+    internal static bool QuantitySummaryStateEquals(QuantitySummary left, QuantitySummary right)
+    {
+        if (left is null || right is null) return left is null && right is null;
+        return StringComparer.Ordinal.Equals(left.Code, right.Code)
+            && left.Quantity.Equals(right.Quantity)
+            && left.FactCount == right.FactCount
+            && left.ElementCount == right.ElementCount;
+    }
+
+    internal static bool BoqLineStateEquals(BoqLine left, BoqLine right)
+    {
+        if (left is null || right is null) return left is null && right is null;
+        return StringComparer.Ordinal.Equals(left.Code, right.Code)
+            && left.Quantity.Equals(right.Quantity)
+            && left.FactCount == right.FactCount
+            && left.ElementCount == right.ElementCount
+            && left.UnitRate == right.UnitRate
+            && left.Total.Equals(right.Total);
     }
 
     private static int? CaptureCurrentCount<T>(IEnumerable<T> source, string parameterName, string entryDescription)
