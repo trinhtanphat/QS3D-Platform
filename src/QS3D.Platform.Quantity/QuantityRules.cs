@@ -294,8 +294,13 @@ public static class QuantityRuleEngine
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (catalog is null) throw new ArgumentNullException(nameof(catalog));
 
+        var elements = project.Elements
+            .OrderBy(static element => element.Id.Value)
+            .Select(CaptureElementSnapshot)
+            .ToArray();
+
         var facts = new List<QuantityFact>();
-        foreach (var element in project.Elements.OrderBy(static element => element.Id.Value))
+        foreach (var element in elements)
         {
             foreach (var rule in catalog.ForKind(element.Kind))
             {
@@ -316,8 +321,52 @@ public static class QuantityRuleEngine
         return facts.AsReadOnly();
     }
 
+    private static ElementSnapshot CaptureElementSnapshot(SemanticElement element)
+    {
+        var sourceBefore = element.SourceReference;
+        var firstProperties = CaptureProperties(element.Properties);
+        var sourceBetween = element.SourceReference;
+        var secondProperties = CaptureProperties(element.Properties);
+        var sourceAfter = element.SourceReference;
+
+        if (sourceBefore != sourceBetween
+            || sourceBetween != sourceAfter
+            || !PropertySnapshotsEqual(firstProperties, secondProperties))
+            throw new InvalidOperationException($"Element '{element.Name}' changed during quantity rule snapshot capture.");
+
+        var properties = new Dictionary<string, string>(firstProperties.Length, StringComparer.Ordinal);
+        foreach (var pair in firstProperties)
+            properties.Add(pair.Key, pair.Value);
+
+        return new ElementSnapshot(
+            element.Id,
+            element.Kind,
+            element.Name,
+            sourceBefore,
+            properties);
+    }
+
+    private static KeyValuePair<string, string>[] CaptureProperties(IReadOnlyDictionary<string, string> properties) =>
+        properties
+            .OrderBy(static pair => pair.Key, StringComparer.Ordinal)
+            .ToArray();
+
+    private static bool PropertySnapshotsEqual(
+        IReadOnlyList<KeyValuePair<string, string>> left,
+        IReadOnlyList<KeyValuePair<string, string>> right)
+    {
+        if (left.Count != right.Count) return false;
+        for (var index = 0; index < left.Count; index++)
+        {
+            if (!string.Equals(left[index].Key, right[index].Key, StringComparison.Ordinal)
+                || !string.Equals(left[index].Value, right[index].Value, StringComparison.Ordinal))
+                return false;
+        }
+        return true;
+    }
+
     private static double TryEvaluate(
-        SemanticElement element,
+        ElementSnapshot element,
         QuantityRuleDefinition rule,
         bool skipRuleWhenInputMissing,
         out bool missingInput)
@@ -582,5 +631,28 @@ public static class QuantityRuleEngine
             highest >>= 1;
         }
         return highestIndex * 8 + bitsInHighest;
+    }
+
+    private sealed class ElementSnapshot
+    {
+        internal ElementSnapshot(
+            ElementId id,
+            SemanticElementKind kind,
+            string name,
+            CadReference? sourceReference,
+            Dictionary<string, string> properties)
+        {
+            Id = id;
+            Kind = kind;
+            Name = name;
+            SourceReference = sourceReference;
+            Properties = properties;
+        }
+
+        internal ElementId Id { get; }
+        internal SemanticElementKind Kind { get; }
+        internal string Name { get; }
+        internal CadReference? SourceReference { get; }
+        internal IReadOnlyDictionary<string, string> Properties { get; }
     }
 }
