@@ -147,15 +147,28 @@ public static class QuantityAccumulator
         CaptureCount(facts as ICollection, static collection => collection.Count, ref advertisedCount);
 
         var copied = advertisedCount.HasValue ? new List<QuantityFact>(advertisedCount.Value) : new List<QuantityFact>();
-        foreach (var fact in facts)
+        if (advertisedCount.HasValue)
         {
-            if (copied.Count >= MaximumFacts)
-                throw new InvalidOperationException($"Quantity facts exceed the supported maximum of {MaximumFacts} entries.");
-            copied.Add(fact);
-        }
+            using var enumerator = facts.GetEnumerator();
+            for (var index = 0; index < advertisedCount.Value; index++)
+            {
+                if (!enumerator.MoveNext())
+                    throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+                copied.Add(enumerator.Current);
+            }
 
-        if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
-            throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+            if (enumerator.MoveNext())
+                throw new InvalidOperationException("Quantity facts changed cardinality during materialization.");
+        }
+        else
+        {
+            foreach (var fact in facts)
+            {
+                if (copied.Count >= MaximumFacts)
+                    throw new InvalidOperationException($"Quantity facts exceed the supported maximum of {MaximumFacts} entries.");
+                copied.Add(fact);
+            }
+        }
 
         RequireStableKnownCount(facts, advertisedCount, copied.Count);
         RequireStableFactGeneration(facts, advertisedCount, copied);

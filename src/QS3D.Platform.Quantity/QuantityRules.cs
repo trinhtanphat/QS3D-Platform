@@ -184,15 +184,28 @@ internal static class QuantityRuleMaterializer
         CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
 
         var copied = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
-        foreach (var item in source)
+        if (advertisedCount.HasValue)
         {
-            if (copied.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            copied.Add(item);
-        }
+            using var enumerator = source.GetEnumerator();
+            for (var materializedIndex = 0; materializedIndex < advertisedCount.Value; materializedIndex++)
+            {
+                if (!enumerator.MoveNext())
+                    throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+                copied.Add(enumerator.Current);
+            }
 
-        if (advertisedCount.HasValue && advertisedCount.Value != copied.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+            if (enumerator.MoveNext())
+                throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        }
+        else
+        {
+            foreach (var item in source)
+            {
+                if (copied.Count >= MaximumEntries)
+                    throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+                copied.Add(item);
+            }
+        }
 
         RequireStableCount(source, advertisedCount, parameterName, entryDescription);
         if (!advertisedCount.HasValue)
