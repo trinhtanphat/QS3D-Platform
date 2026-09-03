@@ -112,6 +112,7 @@ public sealed class QuantitySchedule
             if (!elementIds.Add(row.ElementId))
                 throw new InvalidOperationException($"Duplicate schedule element {row.ElementId.Value:D}.");
         }
+        EnsureGlobalQuantityCodeDimensionAffinity(copiedRows);
         var orderedRows = copiedRows.OrderBy(static row => row.ElementKind)
             .ThenBy(static row => row.ElementName, StringComparer.Ordinal)
             .ThenBy(static row => row.ElementId.Value)
@@ -120,6 +121,26 @@ public sealed class QuantitySchedule
     }
 
     public IReadOnlyList<QuantityScheduleRow> Rows { get; }
+
+    private static void EnsureGlobalQuantityCodeDimensionAffinity(IEnumerable<QuantityScheduleRow> rows)
+    {
+        var dimensionsByCode = new Dictionary<string, QuantityDimension>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            foreach (var quantity in row.Quantities)
+            {
+                if (dimensionsByCode.TryGetValue(quantity.Code, out var existingDimension))
+                {
+                    if (existingDimension != quantity.Quantity.Dimension)
+                        throw new InvalidOperationException($"Quantity code '{quantity.Code}' is declared with both {existingDimension} and {quantity.Quantity.Dimension} dimensions across schedule rows.");
+                }
+                else
+                {
+                    dimensionsByCode.Add(quantity.Code, quantity.Quantity.Dimension);
+                }
+            }
+        }
+    }
 }
 
 public static class QuantityScheduleProjector
@@ -132,17 +153,9 @@ public static class QuantityScheduleProjector
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (facts is null) throw new ArgumentNullException(nameof(facts));
 
-        // In include-empty mode every project element necessarily becomes one output row. Reject
-        // impossible cardinality before allocating any project snapshot state. Keep the later
-        // snapshot-length check as a fail-closed guard if project membership changes concurrently
-        // between this admission read and snapshot materialization.
         if (includeElementsWithoutQuantities && project.Elements.Count > QuantityScheduleMaterializer.MaximumEntries)
             throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
-        // Snapshot every project value that this projection can observe before executing the
-        // caller-controlled facts enumerable. Keeping SemanticElement references here would
-        // still permit SetSource/SetLocation (or project membership changes) to alter one
-        // in-flight schedule after admission.
         var familyNames = project.Families.ToDictionary(static family => family.Id, static family => family.Name);
         var floorIds = new HashSet<FloorId>(project.Floors.Select(static floor => floor.Id));
         var zoneIds = new HashSet<ZoneId>(project.Zones.Select(static zone => zone.Id));
