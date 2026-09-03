@@ -27,11 +27,23 @@ static class QuantityRuleCardinalityModuleSmoke
             QuantityDimension.Count,
             new CountDriftCollection<QuantityFactor>(factor, advertisedCount: 1, yieldedCount: 2)));
 
+        var overrunFactors = new CurrentTrackingCountCollection<QuantityFactor>(factor, advertisedCount: 1, yieldedCount: 2);
+        Throws<InvalidOperationException>(() => _ = new QuantityRuleDefinition(
+            SemanticElementKind.Wall,
+            "WALL.COUNT",
+            QuantityDimension.Count,
+            overrunFactors));
+        Equal(0, overrunFactors.OverrunCurrentReads);
+
         var rule = new QuantityRuleDefinition(SemanticElementKind.Wall, "WALL.COUNT", QuantityDimension.Count);
         Throws<InvalidOperationException>(() => _ = new QuantityRuleCatalog(
             new HostileEnumerable<QuantityRuleDefinition>(rule, MaximumEntries + 1)));
         Throws<InvalidOperationException>(() => _ = new QuantityRuleCatalog(
             new OversizedCountCollection<QuantityRuleDefinition>(rule, MaximumEntries + 1)));
+
+        var overrunRules = new CurrentTrackingCountCollection<QuantityRuleDefinition>(rule, advertisedCount: 1, yieldedCount: 2);
+        Throws<InvalidOperationException>(() => _ = new QuantityRuleCatalog(overrunRules));
+        Equal(0, overrunRules.OverrunCurrentReads);
 
         var exactRules = new QuantityRuleCatalog(Enumerable.Range(0, MaximumEntries).Select(index =>
             new QuantityRuleDefinition(SemanticElementKind.Wall, "WALL.COUNT." + index, QuantityDimension.Count)));
@@ -91,6 +103,61 @@ static class QuantityRuleCardinalityModuleSmoke
         public void Add(T item) => throw new NotSupportedException();
         public bool Remove(T item) => throw new NotSupportedException();
         public void Clear() => throw new NotSupportedException();
+    }
+
+    private sealed class CurrentTrackingCountCollection<T> : ICollection<T>
+    {
+        private readonly T _value;
+        private readonly int _yieldedCount;
+
+        public CurrentTrackingCountCollection(T value, int advertisedCount, int yieldedCount)
+        {
+            _value = value;
+            Count = advertisedCount;
+            _yieldedCount = yieldedCount;
+        }
+
+        public int Count { get; }
+        public int OverrunCurrentReads { get; private set; }
+        public bool IsReadOnly => true;
+        public IEnumerator<T> GetEnumerator() => new Enumerator(this);
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item) => EqualityComparer<T>.Default.Equals(item, _value);
+        public void CopyTo(T[] array, int arrayIndex) => throw new NotSupportedException();
+        public void Add(T item) => throw new NotSupportedException();
+        public bool Remove(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+
+        private sealed class Enumerator : IEnumerator<T>
+        {
+            private readonly CurrentTrackingCountCollection<T> _owner;
+            private int _index = -1;
+
+            public Enumerator(CurrentTrackingCountCollection<T> owner) => _owner = owner;
+
+            public T Current
+            {
+                get
+                {
+                    if (_index >= _owner.Count)
+                        _owner.OverrunCurrentReads++;
+                    return _owner._value;
+                }
+            }
+
+            object IEnumerator.Current => Current!;
+
+            public bool MoveNext()
+            {
+                if (_index + 1 >= _owner._yieldedCount)
+                    return false;
+                _index++;
+                return true;
+            }
+
+            public void Reset() => throw new NotSupportedException();
+            public void Dispose() { }
+        }
     }
 
     private sealed class OversizedCountCollection<T> : ICollection<T>
