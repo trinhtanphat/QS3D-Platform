@@ -80,9 +80,10 @@ public sealed class BoqProjection
         if (copiedLines.Any(static line => line is null))
             throw new ArgumentException("BQ lines must not contain null entries.", nameof(lines));
         EnsureUniqueLineKeys(copiedLines);
-        Lines = copiedLines.OrderBy(static x => x.Code, StringComparer.Ordinal)
+        var orderedLines = copiedLines.OrderBy(static x => x.Code, StringComparer.Ordinal)
             .ThenBy(static x => x.Quantity.Dimension)
             .ToArray();
+        Lines = Array.AsReadOnly(orderedLines);
 
         foreach (var line in Lines)
         {
