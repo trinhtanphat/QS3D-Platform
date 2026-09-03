@@ -61,7 +61,8 @@ internal static class BoqFactProvenanceModuleSmoke
 
         var summary = new QuantitySummary(
             "AREA",
-            new QuantityValue(QuantityDimension.Area, 12.5d),
+            QuantityDimension.Area,
+            12.5d,
             factCount: 2,
             elementCount: 1);
         var projection = BoqProjector.Project(
