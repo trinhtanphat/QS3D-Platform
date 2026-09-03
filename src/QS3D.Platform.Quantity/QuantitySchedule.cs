@@ -132,19 +132,38 @@ public static class QuantityScheduleProjector
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (facts is null) throw new ArgumentNullException(nameof(facts));
-        if (includeElementsWithoutQuantities && project.Elements.Count > QuantityScheduleMaterializer.MaximumEntries)
+
+        // Snapshot every project value that this projection can observe before executing the
+        // caller-controlled facts enumerable. Keeping SemanticElement references here would
+        // still permit SetSource/SetLocation (or project membership changes) to alter one
+        // in-flight schedule after admission.
+        var familyNames = project.Families.ToDictionary(static family => family.Id, static family => family.Name);
+        var floorIds = new HashSet<FloorId>(project.Floors.Select(static floor => floor.Id));
+        var zoneIds = new HashSet<ZoneId>(project.Zones.Select(static zone => zone.Id));
+        var elementSnapshots = project.Elements
+            .Select(static element => new ElementProjectionSnapshot(
+                element.Id,
+                element.Name,
+                element.Kind,
+                element.FamilyId,
+                element.FloorId,
+                element.ZoneId,
+                element.SourceReference))
+            .ToArray();
+
+        if (includeElementsWithoutQuantities && elementSnapshots.Length > QuantityScheduleMaterializer.MaximumEntries)
             throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
-        var elements = project.Elements.ToDictionary(static element => element.Id);
+        var elements = elementSnapshots.ToDictionary(static element => element.Id);
         var copiedFacts = QuantityScheduleMaterializer.Materialize(facts, nameof(facts), "quantity facts");
         if (copiedFacts.Any(static fact => fact is null)) throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
         var factsByElement = new Dictionary<ElementId, List<QuantityFact>>();
         foreach (var fact in copiedFacts)
         {
             if (!elements.TryGetValue(fact.ElementId, out var element))
-                throw new InvalidOperationException($"Quantity fact '{fact.Code}' references element {fact.ElementId.Value:D}, which is not in the project.");
+                throw new InvalidOperationException($"Quantity fact '{fact.Code}' references element {fact.ElementId.Value:D}, which is not in the project snapshot.");
             if (fact.SourceReference != element.SourceReference)
-                throw new InvalidOperationException($"Quantity fact '{fact.Code}' source provenance does not match element {fact.ElementId.Value:D}.");
+                throw new InvalidOperationException($"Quantity fact '{fact.Code}' source provenance does not match element {fact.ElementId.Value:D} in the project snapshot.");
             if (!factsByElement.TryGetValue(fact.ElementId, out var bucket))
             {
                 bucket = new List<QuantityFact>();
@@ -154,16 +173,16 @@ public static class QuantityScheduleProjector
         }
 
         var rows = new List<QuantityScheduleRow>();
-        foreach (var element in project.Elements)
+        foreach (var element in elementSnapshots)
         {
             factsByElement.TryGetValue(element.Id, out var elementFacts);
             if (!includeElementsWithoutQuantities && (elementFacts is null || elementFacts.Count == 0)) continue;
-            if (!project.TryGetFamily(element.FamilyId, out var family) || family is null)
-                throw new InvalidOperationException($"Element '{element.Name}' references a missing family.");
-            if (element.FloorId.HasValue && !project.ContainsFloor(element.FloorId.Value))
-                throw new InvalidOperationException($"Element '{element.Name}' references a floor outside the project.");
-            if (element.ZoneId.HasValue && !project.ContainsZone(element.ZoneId.Value))
-                throw new InvalidOperationException($"Element '{element.Name}' references a zone outside the project.");
+            if (!familyNames.TryGetValue(element.FamilyId, out var familyName))
+                throw new InvalidOperationException($"Element '{element.Name}' references a missing family in the project snapshot.");
+            if (element.FloorId.HasValue && !floorIds.Contains(element.FloorId.Value))
+                throw new InvalidOperationException($"Element '{element.Name}' references a floor outside the project snapshot.");
+            if (element.ZoneId.HasValue && !zoneIds.Contains(element.ZoneId.Value))
+                throw new InvalidOperationException($"Element '{element.Name}' references a zone outside the project snapshot.");
             var summaries = elementFacts is null
                 ? Array.Empty<QuantitySummary>()
                 : QuantityAccumulator.Summarize(elementFacts).ToArray();
@@ -172,7 +191,7 @@ public static class QuantityScheduleProjector
                 element.Name,
                 element.Kind,
                 element.FamilyId,
-                family.Name,
+                familyName,
                 element.FloorId,
                 element.ZoneId,
                 summaries,
@@ -180,6 +199,35 @@ public static class QuantityScheduleProjector
         }
 
         return new QuantitySchedule(rows);
+    }
+
+    private readonly struct ElementProjectionSnapshot
+    {
+        public ElementProjectionSnapshot(
+            ElementId id,
+            string name,
+            SemanticElementKind kind,
+            FamilyId familyId,
+            FloorId? floorId,
+            ZoneId? zoneId,
+            CadReference? sourceReference)
+        {
+            Id = id;
+            Name = name;
+            Kind = kind;
+            FamilyId = familyId;
+            FloorId = floorId;
+            ZoneId = zoneId;
+            SourceReference = sourceReference;
+        }
+
+        public ElementId Id { get; }
+        public string Name { get; }
+        public SemanticElementKind Kind { get; }
+        public FamilyId FamilyId { get; }
+        public FloorId? FloorId { get; }
+        public ZoneId? ZoneId { get; }
+        public CadReference? SourceReference { get; }
     }
 }
 
