@@ -126,12 +126,13 @@ public static class QuantityAccumulator
             throw new ArgumentException("Quantity facts must not contain null entries.", nameof(facts));
         ValidateSourceProvenance(copiedFacts);
 
-        return copiedFacts
+        var summaries = copiedFacts
             .GroupBy(static fact => new QuantityKey(fact.Code, fact.Quantity.Dimension), QuantityKeyComparer.Instance)
             .Select(static group => CreateSummary(group.Key, group))
             .OrderBy(static summary => summary.Code, StringComparer.Ordinal)
             .ThenBy(static summary => summary.Quantity.Dimension)
             .ToArray();
+        return Array.AsReadOnly(summaries);
     }
 
     private static QuantityFact[] MaterializeFacts(IEnumerable<QuantityFact> facts)
