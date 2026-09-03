@@ -33,9 +33,10 @@ public sealed class QuantityScheduleRow
         FamilyName = familyName.Trim();
         FloorId = floorId;
         ZoneId = zoneId;
-        Quantities = copiedQuantities.OrderBy(static quantity => quantity.Code, StringComparer.Ordinal)
+        var orderedQuantities = copiedQuantities.OrderBy(static quantity => quantity.Code, StringComparer.Ordinal)
             .ThenBy(static quantity => quantity.Quantity.Dimension)
             .ToArray();
+        Quantities = Array.AsReadOnly(orderedQuantities);
     }
 
     public ElementId ElementId { get; }
@@ -77,10 +78,11 @@ public sealed class QuantitySchedule
             if (!elementIds.Add(row.ElementId))
                 throw new InvalidOperationException($"Duplicate schedule element {row.ElementId.Value:D}.");
         }
-        Rows = copiedRows.OrderBy(static row => row.ElementKind)
+        var orderedRows = copiedRows.OrderBy(static row => row.ElementKind)
             .ThenBy(static row => row.ElementName, StringComparer.Ordinal)
             .ThenBy(static row => row.ElementId.Value)
             .ToArray();
+        Rows = Array.AsReadOnly(orderedRows);
     }
 
     public IReadOnlyList<QuantityScheduleRow> Rows { get; }
