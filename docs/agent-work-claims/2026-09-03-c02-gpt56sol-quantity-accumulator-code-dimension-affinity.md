@@ -1,6 +1,6 @@
 # Work claim — C02 QuantityAccumulator code/dimension affinity
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T22:34:00+07:00`
 - Baseline main SHA: `a9a86c029f774b089043fe893f0f7e42bb86c64b`
@@ -20,11 +20,11 @@ Fail closed in `QuantityAccumulator.Summarize` when direct/deserialized quantity
 ## Excluded scope
 QuantitySchedule/BOQ production code, Domain/Persistence, Workspace UI, MCP, release/install, unrelated Excel/IFC/BCF surfaces.
 
-## Validation plan
-- deterministic TDD RED for same-code mixed-dimension facts;
-- verify same-element and cross-element ambiguity, ordering independence, valid same-dimension aggregation and distinct-code compatibility;
-- run targeted smoke plus repository CI on exact head;
-- self-review exact accumulation, Count/generation stability, provenance checks, 100,000 ceiling and deterministic ordering.
+## Validation evidence
+- TDD RED head: `e8058470a1605af6649af80d0f30c40d6297506a`; CI `33773558716` failed authoritative validation exactly because mixed-dimension same-code facts were accepted.
+- GREEN implementation head: `07010a90787c0f07cdccefbbb331c1cafbd6aeec`; CI `33773687191` GREEN.
+- Implementation merge commit: `134c6c6439efa683cbdb2f5bb298eabf26ebcf00` via PR #269.
+- Exact-main push CI: `33773802376` GREEN on merge commit `134c6c6439efa683cbdb2f5bb298eabf26ebcf00`.
 
 ## Completion condition
-Implementation is merged through the reviewed PR path, current main contains the fix and regression, and fresh exact-main CI is green.
+Satisfied: code/dimension ambiguity now fails closed before aggregation, deterministic regression coverage is merged, and exact-main CI is green.
