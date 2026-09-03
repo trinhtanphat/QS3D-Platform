@@ -8,18 +8,27 @@ namespace QS3D.Platform.SmokeTests;
 internal static class QuantityScheduleProjectRowAdmissionModuleSmoke
 {
     private const int MaximumEntries = 100_000;
+    private const long MaximumRejectedRequestAllocationBytes = 1_000_000;
 
     [ModuleInitializer]
     internal static void Run()
     {
+        WarmProjectionPath();
+
         var oversized = CreateProject(MaximumEntries + 1, "Oversized include-empty schedule");
         var hostileFacts = new ThrowIfEnumeratedFacts();
+        var allocatedBeforeReject = GC.GetAllocatedBytesForCurrentThread();
         ExpectInvalidOperation(() => QuantityScheduleProjector.Project(
             oversized,
             hostileFacts,
             includeElementsWithoutQuantities: true));
+        var rejectedRequestAllocation = GC.GetAllocatedBytesForCurrentThread() - allocatedBeforeReject;
         if (hostileFacts.WasEnumerated)
             throw new InvalidOperationException("Oversized include-empty schedule touched facts before rejecting impossible row cardinality.");
+        if (rejectedRequestAllocation > MaximumRejectedRequestAllocationBytes)
+            throw new InvalidOperationException(
+                $"Oversized include-empty schedule allocated {rejectedRequestAllocation} bytes before rejecting known-impossible row cardinality; " +
+                $"expected no allocation proportional to {MaximumEntries + 1} project elements.");
 
         var sparseFromOversizedProject = QuantityScheduleProjector.Project(
             oversized,
@@ -37,6 +46,17 @@ internal static class QuantityScheduleProjectRowAdmissionModuleSmoke
             throw new InvalidOperationException($"Exact row ceiling expected {MaximumEntries} rows, got {exactSchedule.Rows.Count}.");
 
         Console.WriteLine("PASS quantity schedule project-row admission boundary");
+    }
+
+    private static void WarmProjectionPath()
+    {
+        var warm = CreateProject(1, "Warm include-empty schedule");
+        var schedule = QuantityScheduleProjector.Project(
+            warm,
+            Array.Empty<QuantityFact>(),
+            includeElementsWithoutQuantities: true);
+        if (schedule.Rows.Count != 1)
+            throw new InvalidOperationException("Projection warm-up did not preserve the admitted include-empty row.");
     }
 
     private static SemanticProject CreateProject(int elementCount, string name)
