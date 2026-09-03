@@ -125,6 +125,10 @@ public static class QuantityScheduleProjector
             if (!includeElementsWithoutQuantities && (elementFacts is null || elementFacts.Count == 0)) continue;
             if (!project.TryGetFamily(element.FamilyId, out var family) || family is null)
                 throw new InvalidOperationException($"Element '{element.Name}' references a missing family.");
+            if (element.FloorId.HasValue && !project.ContainsFloor(element.FloorId.Value))
+                throw new InvalidOperationException($"Element '{element.Name}' references a floor outside the project.");
+            if (element.ZoneId.HasValue && !project.ContainsZone(element.ZoneId.Value))
+                throw new InvalidOperationException($"Element '{element.Name}' references a zone outside the project.");
             var summaries = elementFacts is null
                 ? Array.Empty<QuantitySummary>()
                 : QuantityAccumulator.Summarize(elementFacts).ToArray();
