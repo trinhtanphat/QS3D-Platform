@@ -1,6 +1,6 @@
 # C02 reservation — BOQ fact-count provenance fidelity
 
-Status: ACTIVE
+Status: COMPLETED
 Lane-Key: issue-199
 Issue: #199
 Canonical owner/session: account:trinhtanphat|session:gpt56sol-c02-20260903-boq-fact-evidence
@@ -31,5 +31,13 @@ No Domain/Persistence implementation changes, Workspace UI, MCP transport/runtim
 - fresh exact-head and exact-main authoritative Platform CI;
 - self-review arithmetic invariants, compatibility, nullability and evidence semantics.
 
+## Completion evidence
+- TDD isolated RED: Platform CI 33731126354 on `a97405ce2b73349ea0d4912eb6d73db9ae9f8090`.
+- Exact production head GREEN: Platform CI 33731269733 on `2b07ed8d1b3219b6c664ae32459aa67dabd2f192`.
+- Production PR: #201.
+- Production merge commit: `0a161931c39ed6bc6ed6dafe147e8ee5ada311a1`.
+- Exact production-main GREEN: Platform CI 33731533297 on `0a161931c39ed6bc6ed6dafe147e8ee5ada311a1`.
+- Issue #199 closed as completed after exact-main verification.
+
 ## Completion condition
-Production carrier merged, exact-main Platform CI green, issue closed/completed and reservation terminalized.
+Satisfied: production carrier merged, exact-main Platform CI green, issue closed/completed and reservation terminalized by this claim-only closeout.
