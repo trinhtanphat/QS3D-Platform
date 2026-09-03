@@ -1,6 +1,6 @@
 # Work claim — C02 quantity schedule row summary affinity
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c02-gpt56sol`
 - Registered: `2026-09-03T12:06:00+07:00`
 - Baseline main SHA: `845128e6923d1c4856696371510b3a2e6f09be65`
@@ -20,11 +20,11 @@ Enforce row-local quantity evidence integrity at the public `QuantityScheduleRow
 ## Excluded scope
 Quantity arithmetic/unit conversion, BOQ/commercial math, Domain/Core persistence, UI, MCP, installer/release, unrelated exports.
 
-## Validation plan
-1. deterministic RED proving `ElementCount > 1` and zero-fact summaries are currently accepted by a per-element row;
-2. minimal production guard at row construction after safe materialization/null validation;
-3. retain valid zero-valued fact-backed summaries and empty quantity collections;
-4. run exact-head Platform CI and broader quantity smoke validation; reconcile latest main before merge.
+## Validation evidence
+- RED regression-only head: `639ab3b0af75047d3044d1b00fb3cc9e34113b5c`, CI `33717538014` FAILURE.
+- GREEN exact implementation head: `2a21bf963bb20719be24cf48b1e8d07743fdcaf6`, CI `33717612261` SUCCESS.
+- Implementation merge commit: `d076fb509f97097ac12224910c319d3aed51418c`.
+- Exact-main CI: `33717668292` SUCCESS on `d076fb509f97097ac12224910c319d3aed51418c`.
 
 ## Completion condition
-Implementation merged to current main with fresh exact-head GREEN and exact-main GREEN evidence, then claim terminalized.
+Satisfied: invalid aggregate/zero-fact summaries fail closed at the per-element row boundary, valid empty rows and zero-valued fact-backed summaries remain supported, implementation is merged, and exact-main CI is green.
