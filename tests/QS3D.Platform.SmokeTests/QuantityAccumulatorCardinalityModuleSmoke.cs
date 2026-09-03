@@ -21,6 +21,11 @@ static class QuantityAccumulatorCardinalityModuleSmoke
             new HostileEnumerable<QuantityFact>(fact, MaximumEntries + 1)));
         Throws<InvalidOperationException>(() => QuantityAccumulator.Summarize(
             new CountDriftCollection<QuantityFact>(fact, advertisedCount: 1, yieldedCount: 2)));
+
+        var overrunFacts = new CurrentTrackingCountCollection<QuantityFact>(fact, advertisedCount: 1, yieldedCount: 2);
+        Throws<InvalidOperationException>(() => QuantityAccumulator.Summarize(overrunFacts));
+        Equal(0, overrunFacts.OverrunCurrentReads);
+
         Throws<InvalidOperationException>(() => QuantityAccumulator.Summarize(
             new OversizedCountCollection<QuantityFact>(fact, MaximumEntries + 1)));
         Throws<ArgumentException>(() => QuantityAccumulator.Summarize(new QuantityFact[] { null! }));
@@ -106,6 +111,61 @@ static class QuantityAccumulatorCardinalityModuleSmoke
         public void Add(T item) => throw new NotSupportedException();
         public bool Remove(T item) => throw new NotSupportedException();
         public void Clear() => throw new NotSupportedException();
+    }
+
+    private sealed class CurrentTrackingCountCollection<T> : ICollection<T>
+    {
+        private readonly T _value;
+        private readonly int _yieldedCount;
+
+        public CurrentTrackingCountCollection(T value, int advertisedCount, int yieldedCount)
+        {
+            _value = value;
+            Count = advertisedCount;
+            _yieldedCount = yieldedCount;
+        }
+
+        public int Count { get; }
+        public int OverrunCurrentReads { get; private set; }
+        public bool IsReadOnly => true;
+        public IEnumerator<T> GetEnumerator() => new Enumerator(this);
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public bool Contains(T item) => EqualityComparer<T>.Default.Equals(item, _value);
+        public void CopyTo(T[] array, int arrayIndex) => throw new NotSupportedException();
+        public void Add(T item) => throw new NotSupportedException();
+        public bool Remove(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+
+        private sealed class Enumerator : IEnumerator<T>
+        {
+            private readonly CurrentTrackingCountCollection<T> _owner;
+            private int _index = -1;
+
+            public Enumerator(CurrentTrackingCountCollection<T> owner) => _owner = owner;
+
+            public T Current
+            {
+                get
+                {
+                    if (_index >= _owner.Count)
+                        _owner.OverrunCurrentReads++;
+                    return _owner._value;
+                }
+            }
+
+            object IEnumerator.Current => Current!;
+
+            public bool MoveNext()
+            {
+                if (_index + 1 >= _owner._yieldedCount)
+                    return false;
+                _index++;
+                return true;
+            }
+
+            public void Reset() => throw new NotSupportedException();
+            public void Dispose() { }
+        }
     }
 
     private sealed class OversizedCountCollection<T> : ICollection<T>
