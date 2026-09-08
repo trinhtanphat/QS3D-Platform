@@ -1,6 +1,6 @@
 # Work claim — C01 semantic snapshot materialization safety
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c01-gpt56sol`
 - Registered: `2026-09-03T06:29:00+07:00`
 - Baseline main SHA: `d44a0a9b5d2168dccb1007130554fad583c63811`
@@ -28,3 +28,6 @@ Quantity/estimating, BricsCAD UI/native runtime, MCP transport, release/installe
 
 ## Completion condition
 Production fix and regression are merged through PR after fresh exact-head GREEN CI, with final main SHA verified.
+
+## Completion evidence
+Canonical issue #94 is closed as completed and the bounded materialization implementation/regression is present on protected main `5c1b650e475af3c823ae38aaf1a4a85f41985457`. Claim status corrected from stale `ACTIVE` to `COMPLETED` during coordination for #289; this does not reopen or alter #94 implementation scope.
