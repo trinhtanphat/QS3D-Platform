@@ -215,13 +215,14 @@ public sealed class MepBqProjectionService
         if (profile is null) throw new ArgumentNullException(nameof(profile));
         if (library is null) throw new ArgumentNullException(nameof(library));
 
-        var sourceKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sourceKeys = new HashSet<(string Region, string System, string Specification, MepElementKind Kind)>(SourceIdentityComparer.Instance);
         var accumulators = new Dictionary<string, MutableLine>(StringComparer.OrdinalIgnoreCase);
         foreach (var group in groups)
         {
             if (group is null) throw new ArgumentException("MEP quantity projection contains null group.", nameof(groups));
+            var sourceIdentity = (group.Region, group.System, group.Specification, group.Kind);
             var sourceKey = SourceKey(group);
-            if (!sourceKeys.Add(sourceKey)) throw new ArgumentException("Duplicate MEP quantity source group: " + sourceKey + ".", nameof(groups));
+            if (!sourceKeys.Add(sourceIdentity)) throw new ArgumentException("Duplicate MEP quantity source group: " + sourceKey + ".", nameof(groups));
 
             var match = profile.Match(group);
             if (match.Status == MepBqMappingStatus.Unmatched)
@@ -283,6 +284,29 @@ public sealed class MepBqProjectionService
 
     private static string SourceKey(MepQuantityGroup group) =>
         group.Region + "|" + group.System + "|" + group.Specification + "|" + group.Kind;
+
+    private sealed class SourceIdentityComparer : IEqualityComparer<(string Region, string System, string Specification, MepElementKind Kind)>
+    {
+        internal static readonly SourceIdentityComparer Instance = new();
+
+        public bool Equals(
+            (string Region, string System, string Specification, MepElementKind Kind) left,
+            (string Region, string System, string Specification, MepElementKind Kind) right) =>
+            StringComparer.OrdinalIgnoreCase.Equals(left.Region, right.Region) &&
+            StringComparer.OrdinalIgnoreCase.Equals(left.System, right.System) &&
+            StringComparer.OrdinalIgnoreCase.Equals(left.Specification, right.Specification) &&
+            left.Kind == right.Kind;
+
+        public int GetHashCode((string Region, string System, string Specification, MepElementKind Kind) value)
+        {
+            var hash = new HashCode();
+            hash.Add(value.Region, StringComparer.OrdinalIgnoreCase);
+            hash.Add(value.System, StringComparer.OrdinalIgnoreCase);
+            hash.Add(value.Specification, StringComparer.OrdinalIgnoreCase);
+            hash.Add(value.Kind);
+            return hash.ToHashCode();
+        }
+    }
 
     private sealed class MutableLine
     {
