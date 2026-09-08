@@ -269,16 +269,7 @@ internal static class BoqInputMaterializer
         if (string.IsNullOrWhiteSpace(entryDescription)) throw new ArgumentException("Entry description must not be blank.", nameof(entryDescription));
 
         var advertisedCount = CaptureCurrentCount(source, parameterName, entryDescription);
-        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
-        foreach (var item in source)
-        {
-            if (result.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            result.Add(item);
-        }
-
-        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        var result = MaterializeCaptured(source, advertisedCount, entryDescription);
 
         var finalCount = CaptureCurrentCount(source, parameterName, entryDescription);
         if (advertisedCount.HasValue != finalCount.HasValue
@@ -307,6 +298,34 @@ internal static class BoqInputMaterializer
         if (!replayCount.HasValue || replayCount.Value != advertisedCount.Value || replayCount.Value != snapshot.Length)
             throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
         return snapshot;
+    }
+
+    private static List<T> MaterializeCaptured<T>(IEnumerable<T> source, int? advertisedCount, string entryDescription)
+    {
+        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
+        if (!advertisedCount.HasValue)
+        {
+            foreach (var item in source)
+            {
+                if (result.Count >= MaximumEntries)
+                    throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+                result.Add(item);
+            }
+            return result;
+        }
+
+        using var enumerator = source.GetEnumerator();
+        for (var index = 0; index < advertisedCount.Value; index++)
+        {
+            if (!enumerator.MoveNext())
+                throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+            result.Add(enumerator.Current);
+        }
+
+        if (enumerator.MoveNext())
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        return result;
     }
 
     internal static bool UnitRateStateEquals(UnitRate left, UnitRate right)
