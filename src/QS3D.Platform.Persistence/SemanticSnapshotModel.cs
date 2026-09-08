@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.ObjectModel;
 using QS3D.Platform.Domain;
 
 namespace QS3D.Platform.Persistence;
@@ -155,7 +156,7 @@ internal static class SnapshotGuard
     public static IReadOnlyDictionary<string, string> CopyProperties(IReadOnlyDictionary<string, string>? properties)
     {
         var result = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (properties is null) return result;
+        if (properties is null) return new ReadOnlyDictionary<string, string>(result);
 
         var advertisedCount = properties.Count;
         ValidateCount(advertisedCount, nameof(properties));
@@ -179,7 +180,7 @@ internal static class SnapshotGuard
         if (finalCount != advertisedCount || finalCount != result.Count)
             throw new ArgumentException("Snapshot property Count changed during materialization.", nameof(properties));
 
-        return result;
+        return new ReadOnlyDictionary<string, string>(result);
     }
 
     private static int? ReadAdvertisedCount<T>(IEnumerable<T> values, string parameterName)

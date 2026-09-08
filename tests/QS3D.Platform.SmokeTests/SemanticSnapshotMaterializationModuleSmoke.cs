@@ -52,7 +52,32 @@ internal static class SemanticSnapshotMaterializationModuleSmoke
             Array.Empty<CadReferenceSnapshot>(),
             new PostTraversalCountDriftDictionary("ThicknessMm", "200")));
 
-        Console.WriteLine("PASS semantic snapshot bounded materialization contracts");
+        var sourceProperties = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["ThicknessMm"] = "200"
+        };
+        var immutableSnapshot = new ElementSnapshot(
+            Guid.NewGuid(),
+            SemanticElementKind.Wall,
+            "Immutable",
+            family.Id,
+            null,
+            null,
+            null,
+            Array.Empty<CadReferenceSnapshot>(),
+            sourceProperties);
+
+        sourceProperties["ThicknessMm"] = "250";
+        if (immutableSnapshot.Properties["ThicknessMm"] != "200")
+            throw new InvalidOperationException("Semantic snapshot properties must be detached from the caller-owned source dictionary.");
+
+        if (immutableSnapshot.Properties is not IDictionary<string, string> mutableProperties)
+            throw new InvalidOperationException("Semantic snapshot property storage must expose standard dictionary read semantics.");
+        Throws<NotSupportedException>(() => mutableProperties["ThicknessMm"] = "300");
+        if (immutableSnapshot.Properties["ThicknessMm"] != "200")
+            throw new InvalidOperationException("Semantic snapshot properties must remain immutable after construction.");
+
+        Console.WriteLine("PASS semantic snapshot bounded materialization and property immutability contracts");
     }
 
     private sealed class AdvertisedOnlyCollection<T> : IReadOnlyCollection<T>
