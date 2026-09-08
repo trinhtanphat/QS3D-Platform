@@ -13,11 +13,24 @@ static class QuantityScheduleKnownCountNoOverreadModuleSmoke
         project.AddElement(element);
 
         var fact = new QuantityFact(element.Id, "WALL.LENGTH", new QuantityValue(QuantityDimension.Length, 1d));
-        var source = new UnderreportedCountCollection<QuantityFact>(fact, advertisedCount: 1, yieldedCount: 2);
 
-        Throws<InvalidOperationException>(() => QuantityScheduleProjector.Project(project, source));
-        Equal(2, source.MoveNextCalls);
-        Equal(1, source.CurrentReads);
+        var underreported = new CountControlledCollection<QuantityFact>(fact, advertisedCount: 1, yieldedCount: 2);
+        Throws<InvalidOperationException>(() => QuantityScheduleProjector.Project(project, underreported));
+        Equal(2, underreported.MoveNextCalls);
+        Equal(1, underreported.CurrentReads);
+        Equal(1, underreported.DisposeCalls);
+
+        var zeroUnderreported = new CountControlledCollection<QuantityFact>(fact, advertisedCount: 0, yieldedCount: 1);
+        Throws<InvalidOperationException>(() => QuantityScheduleProjector.Project(project, zeroUnderreported));
+        Equal(1, zeroUnderreported.MoveNextCalls);
+        Equal(0, zeroUnderreported.CurrentReads);
+        Equal(1, zeroUnderreported.DisposeCalls);
+
+        var earlyEnd = new CountControlledCollection<QuantityFact>(fact, advertisedCount: 2, yieldedCount: 1);
+        Throws<InvalidOperationException>(() => QuantityScheduleProjector.Project(project, earlyEnd));
+        Equal(2, earlyEnd.MoveNextCalls);
+        Equal(1, earlyEnd.CurrentReads);
+        Equal(1, earlyEnd.DisposeCalls);
     }
 
     private static void Equal<T>(T expected, T actual) where T : notnull
@@ -33,12 +46,12 @@ static class QuantityScheduleKnownCountNoOverreadModuleSmoke
         throw new InvalidOperationException($"Expected {typeof(T).Name}.");
     }
 
-    private sealed class UnderreportedCountCollection<T> : ICollection<T>
+    private sealed class CountControlledCollection<T> : ICollection<T>
     {
         private readonly T _value;
         private readonly int _yieldedCount;
 
-        public UnderreportedCountCollection(T value, int advertisedCount, int yieldedCount)
+        public CountControlledCollection(T value, int advertisedCount, int yieldedCount)
         {
             _value = value;
             Count = advertisedCount;
@@ -49,6 +62,7 @@ static class QuantityScheduleKnownCountNoOverreadModuleSmoke
         public bool IsReadOnly => true;
         public int MoveNextCalls { get; private set; }
         public int CurrentReads { get; private set; }
+        public int DisposeCalls { get; private set; }
 
         public IEnumerator<T> GetEnumerator() => new Enumerator(this);
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -60,10 +74,10 @@ static class QuantityScheduleKnownCountNoOverreadModuleSmoke
 
         private sealed class Enumerator : IEnumerator<T>
         {
-            private readonly UnderreportedCountCollection<T> _owner;
+            private readonly CountControlledCollection<T> _owner;
             private int _index;
 
-            public Enumerator(UnderreportedCountCollection<T> owner) => _owner = owner;
+            public Enumerator(CountControlledCollection<T> owner) => _owner = owner;
 
             public T Current
             {
@@ -88,7 +102,7 @@ static class QuantityScheduleKnownCountNoOverreadModuleSmoke
             }
 
             public void Reset() => throw new NotSupportedException();
-            public void Dispose() { }
+            public void Dispose() => _owner.DisposeCalls++;
         }
     }
 }
