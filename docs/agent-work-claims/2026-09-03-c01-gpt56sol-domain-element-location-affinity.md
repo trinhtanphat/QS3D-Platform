@@ -1,12 +1,13 @@
 # Work claim — C01 domain element location affinity
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c01-gpt56sol`
 - Registered: `2026-09-03T07:32:45+07:00`
 - Baseline main SHA: `4292c2186dc5c8fbe8394908a168609f3dd7a008`
 - Implementation branch: `agent/c01-gpt56sol-20260903-0732/issue-106-domain-element-location-affinity`
 - Integration batch: `TBD`
 - Lane-Key: `c01-domain-element-location-affinity-20260903`
+- Canonical issue: `#106`
 
 ## Reserved scope
 C01 Domain project admission semantics for `SemanticProject.AddElement`: non-null FloorId/ZoneId must belong to the same project before element insertion. Direct deterministic smoke coverage may be adjusted where an existing test intentionally constructs stale location state before admission; such coverage must preserve the health-analyzer behavior by introducing drift only after a valid add.
@@ -29,3 +30,6 @@ Persistence schema/serialization, Quantity, BricsCAD UI/runtime, MCP, release/in
 
 ## Completion condition
 Implementation merged through reviewed PR, exact candidate CI GREEN, merge commit verified on current main, and post-merge evidence recorded.
+
+## Completion evidence
+Canonical issue #106 is closed as completed and the location-affinity admission checks are present on current Platform main. This coordination update corrects the stale `ACTIVE` status before reserving a distinct SemanticElement encapsulation scope in #292.
