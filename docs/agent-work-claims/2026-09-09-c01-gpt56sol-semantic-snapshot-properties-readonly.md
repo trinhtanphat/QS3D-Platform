@@ -1,6 +1,6 @@
 # Work claim — C01 semantic snapshot property immutability
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `c01-gpt56sol`
 - Registered: `2026-09-09T05:47:00+07:00`
 - Baseline main SHA: `5c1b650e475af3c823ae38aaf1a4a85f41985457`
@@ -28,3 +28,6 @@ Quantity/estimating, CAD adapters/native runtime, BricsCAD repository code, MCP,
 
 ## Completion condition
 Implementation and regression are merged through reviewed PR with exact-tree Platform CI GREEN, claim updated terminal, and final platform main SHA verified.
+
+## Completion evidence
+Test-only head `2c1eb9662e32cf38a1207607f59ac29fbfbba93f` produced deterministic RED in CI `34287716841`; corrected production head `e704195541de7c7656c2f08d09234a99033196fe` passed exact-head Platform CI `34287872747`; PR #291 merged as `897309d542dfa17e5071244cce67cb3f5a027cbb`, which was then verified as current Platform main.
