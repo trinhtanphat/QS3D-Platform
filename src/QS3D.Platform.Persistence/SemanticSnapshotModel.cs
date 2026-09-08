@@ -54,7 +54,7 @@ public sealed class ZoneSnapshot
         Id = id;
         Name = name.Trim();
     }
-    public ZoneId? ZoneId { get; private set; }
+    public Guid Id { get; }
     public string Name { get; }
 }
 
