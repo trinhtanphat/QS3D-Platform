@@ -153,17 +153,9 @@ public static class QuantityScheduleProjector
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (facts is null) throw new ArgumentNullException(nameof(facts));
 
-        // In include-empty mode every project element necessarily becomes one output row. Reject
-        // impossible cardinality before allocating any project snapshot state. Keep the later
-        // snapshot-length check as a fail-closed guard if project membership changes concurrently
-        // between this admission read and snapshot materialization.
         if (includeElementsWithoutQuantities && project.Elements.Count > QuantityScheduleMaterializer.MaximumEntries)
             throw new InvalidOperationException($"Schedule rows exceed the supported maximum of {QuantityScheduleMaterializer.MaximumEntries} entries.");
 
-        // Snapshot every project value that this projection can observe before executing the
-        // caller-controlled facts enumerable. Keeping SemanticElement references here would
-        // still permit SetSource/SetLocation (or project membership changes) to alter one
-        // in-flight schedule after admission.
         var familyNames = project.Families.ToDictionary(static family => family.Id, static family => family.Name);
         var floorIds = new HashSet<FloorId>(project.Floors.Select(static floor => floor.Id));
         var zoneIds = new HashSet<ZoneId>(project.Zones.Select(static zone => zone.Id));
@@ -272,16 +264,7 @@ internal static class QuantityScheduleMaterializer
         CaptureCount(source as IReadOnlyCollection<T>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
         CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
 
-        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
-        foreach (var item in source)
-        {
-            if (result.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            result.Add(item);
-        }
-
-        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        var result = MaterializeCaptured(source, advertisedCount, entryDescription);
 
         int? finalCount = null;
         CaptureCount(source as ICollection<T>, static collection => collection.Count, ref finalCount, parameterName, entryDescription);
@@ -307,16 +290,7 @@ internal static class QuantityScheduleMaterializer
         CaptureCount(source as IReadOnlyCollection<QuantityScheduleRow>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
         CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
 
-        var result = advertisedCount.HasValue ? new List<QuantityScheduleRow>(advertisedCount.Value) : new List<QuantityScheduleRow>();
-        foreach (var row in source)
-        {
-            if (result.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            result.Add(row);
-        }
-
-        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        var result = MaterializeCaptured(source, advertisedCount, entryDescription);
 
         RequireStableKnownRowCount(source, advertisedCount, result.Count, parameterName, entryDescription);
         if (!advertisedCount.HasValue)
@@ -353,16 +327,7 @@ internal static class QuantityScheduleMaterializer
         CaptureCount(source as IReadOnlyCollection<QuantitySummary>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
         CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
 
-        var result = advertisedCount.HasValue ? new List<QuantitySummary>(advertisedCount.Value) : new List<QuantitySummary>();
-        foreach (var summary in source)
-        {
-            if (result.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            result.Add(summary);
-        }
-
-        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        var result = MaterializeCaptured(source, advertisedCount, entryDescription);
 
         RequireStableKnownSummaryCount(source, advertisedCount, result.Count, parameterName, entryDescription);
         if (!advertisedCount.HasValue)
@@ -399,16 +364,7 @@ internal static class QuantityScheduleMaterializer
         CaptureCount(source as IReadOnlyCollection<QuantityFact>, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
         CaptureCount(source as ICollection, static collection => collection.Count, ref advertisedCount, parameterName, entryDescription);
 
-        var result = advertisedCount.HasValue ? new List<QuantityFact>(advertisedCount.Value) : new List<QuantityFact>();
-        foreach (var fact in source)
-        {
-            if (result.Count >= MaximumEntries)
-                throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
-            result.Add(fact);
-        }
-
-        if (advertisedCount.HasValue && advertisedCount.Value != result.Count)
-            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+        var result = MaterializeCaptured(source, advertisedCount, entryDescription);
 
         RequireStableKnownCount(source, advertisedCount, result.Count, parameterName, entryDescription);
         if (!advertisedCount.HasValue)
@@ -430,6 +386,34 @@ internal static class QuantityScheduleMaterializer
             throw new InvalidOperationException($"{entryDescription} content changed during materialization.");
         RequireStableKnownCount(source, advertisedCount, snapshot.Length, parameterName, entryDescription);
         return snapshot;
+    }
+
+    private static List<T> MaterializeCaptured<T>(IEnumerable<T> source, int? advertisedCount, string entryDescription)
+    {
+        var result = advertisedCount.HasValue ? new List<T>(advertisedCount.Value) : new List<T>();
+        if (!advertisedCount.HasValue)
+        {
+            foreach (var item in source)
+            {
+                if (result.Count >= MaximumEntries)
+                    throw new InvalidOperationException($"{entryDescription} exceed the supported maximum of {MaximumEntries} entries.");
+                result.Add(item);
+            }
+            return result;
+        }
+
+        using var enumerator = source.GetEnumerator();
+        for (var index = 0; index < advertisedCount.Value; index++)
+        {
+            if (!enumerator.MoveNext())
+                throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+            result.Add(enumerator.Current);
+        }
+
+        if (enumerator.MoveNext())
+            throw new InvalidOperationException($"{entryDescription} changed cardinality during materialization.");
+
+        return result;
     }
 
     private static bool QuantityScheduleRowStateEquals(QuantityScheduleRow? left, QuantityScheduleRow? right)
