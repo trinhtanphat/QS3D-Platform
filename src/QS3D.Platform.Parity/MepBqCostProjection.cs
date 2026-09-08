@@ -299,12 +299,15 @@ public sealed class MepBqProjectionService
 
         public int GetHashCode((string Region, string System, string Specification, MepElementKind Kind) value)
         {
-            var hash = new HashCode();
-            hash.Add(value.Region, StringComparer.OrdinalIgnoreCase);
-            hash.Add(value.System, StringComparer.OrdinalIgnoreCase);
-            hash.Add(value.Specification, StringComparer.OrdinalIgnoreCase);
-            hash.Add(value.Kind);
-            return hash.ToHashCode();
+            unchecked
+            {
+                var hash = 17;
+                hash = (hash * 31) + StringComparer.OrdinalIgnoreCase.GetHashCode(value.Region);
+                hash = (hash * 31) + StringComparer.OrdinalIgnoreCase.GetHashCode(value.System);
+                hash = (hash * 31) + StringComparer.OrdinalIgnoreCase.GetHashCode(value.Specification);
+                hash = (hash * 31) + value.Kind.GetHashCode();
+                return hash;
+            }
         }
     }
 
