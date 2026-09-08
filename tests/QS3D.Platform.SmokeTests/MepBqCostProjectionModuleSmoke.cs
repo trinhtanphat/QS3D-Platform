@@ -46,6 +46,20 @@ internal static class MepBqCostProjectionModuleSmoke
         Equal(2, pipeProjection.Sources[0].ElementCount);
         Equal(12m, pipeProjection.Sources[0].ContributedQuantity);
 
+        var delimiterGroups = new MepQuantityService().Aggregate(new[]
+        {
+            new MepElement("PX1", MepElementKind.Pipe, "C", "D", "A|B", lengthM: 1d),
+            new MepElement("PX2", MepElementKind.Pipe, "B|C", "D", "A", lengthM: 2d)
+        });
+        var delimiterProfile = new MepBqMappingProfile(new[]
+        {
+            new MepBqMappingRule("pipe.delimiter", 10, "BQ-PIPE-GENERIC", MepBqMeasurementBasis.Length, MepElementKind.Pipe)
+        });
+        var delimiterProjection = new MepBqProjectionService().Project(delimiterGroups, delimiterProfile, library);
+        Equal(1, delimiterProjection.Count);
+        Equal(3m, delimiterProjection[0].Quantity);
+        Equal(2, delimiterProjection[0].Sources.Count);
+
         var pipeGroup = groups.Single(x => x.Kind == MepElementKind.Pipe);
         var ambiguousProfile = new MepBqMappingProfile(new[]
         {
