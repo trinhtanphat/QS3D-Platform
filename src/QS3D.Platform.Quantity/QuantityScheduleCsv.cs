@@ -139,7 +139,6 @@ public static class QuantityScheduleCsv
 
     private sealed class CsvOutputBuilder
     {
-        private static readonly Encoding Utf8 = new UTF8Encoding(false);
         private readonly StringBuilder _buffer = new StringBuilder();
         private readonly long _maxUtf8Bytes;
         private long _utf8Bytes;
@@ -153,7 +152,7 @@ public static class QuantityScheduleCsv
         internal void AppendLiteral(string value)
         {
             if (value is null) throw new ArgumentNullException(nameof(value));
-            Reserve(Utf8.GetByteCount(value));
+            Reserve(CountUtf8Bytes(value, 0, value.Length));
             _buffer.Append(value);
         }
 
@@ -195,7 +194,7 @@ public static class QuantityScheduleCsv
                 if (current != '"' && current != '\r' && current != '\n') continue;
 
                 if (index > segmentStart)
-                    bytes = checked(bytes + Utf8.GetByteCount(value, segmentStart, index - segmentStart));
+                    bytes = checked(bytes + CountUtf8Bytes(value, segmentStart, index - segmentStart));
 
                 if (current == '"')
                 {
@@ -211,9 +210,49 @@ public static class QuantityScheduleCsv
             }
 
             if (segmentStart < value.Length)
-                bytes = checked(bytes + Utf8.GetByteCount(value, segmentStart, value.Length - segmentStart));
+                bytes = checked(bytes + CountUtf8Bytes(value, segmentStart, value.Length - segmentStart));
 
             return checked(bytes + (last ? 2L : 1L));
+        }
+
+        private static long CountUtf8Bytes(string value, int start, int count)
+        {
+            var end = checked(start + count);
+            var bytes = 0L;
+            for (var index = start; index < end; index++)
+            {
+                var current = value[index];
+                if (current <= 0x7F)
+                {
+                    bytes = checked(bytes + 1L);
+                    continue;
+                }
+                if (current <= 0x7FF)
+                {
+                    bytes = checked(bytes + 2L);
+                    continue;
+                }
+                if (char.IsHighSurrogate(current))
+                {
+                    if (index + 1 < end && char.IsLowSurrogate(value[index + 1]))
+                    {
+                        bytes = checked(bytes + 4L);
+                        index++;
+                    }
+                    else
+                    {
+                        bytes = checked(bytes + 3L); // UTF-8 replacement character
+                    }
+                    continue;
+                }
+                if (char.IsLowSurrogate(current))
+                {
+                    bytes = checked(bytes + 3L); // UTF-8 replacement character
+                    continue;
+                }
+                bytes = checked(bytes + 3L);
+            }
+            return bytes;
         }
 
         private void AppendNormalizedEscapedValue(string value)
