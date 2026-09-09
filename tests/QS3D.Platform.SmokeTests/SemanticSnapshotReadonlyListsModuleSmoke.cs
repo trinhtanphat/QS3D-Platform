@@ -10,7 +10,7 @@ internal static class SemanticSnapshotReadonlyListsModuleSmoke
     internal static void Run()
     {
         var floor = new FloorSnapshot(Guid.NewGuid(), "L1", 0d);
-        var zone = new ZoneSnapshot(Guid.NewGuid(), "Core", 0d);
+        var zone = new ZoneSnapshot(Guid.NewGuid(), "Core");
         var family = new FamilySnapshot(Guid.NewGuid(), SemanticElementKind.Wall, "Wall");
         var generated = new CadReferenceSnapshot(Guid.NewGuid(), "1A");
         var element = new ElementSnapshot(
