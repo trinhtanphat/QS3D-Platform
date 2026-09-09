@@ -1,4 +1,4 @@
-# Work claim — C01 semantic snapshot read-only lists
+# Work claim — C01 persistence read-only lists
 
 - Status: `ACTIVE`
 - Agent: `gpt56sol-c01`
@@ -10,23 +10,27 @@
 - Canonical issue: `#295`
 
 ## Reserved scope
-Make persistence snapshot list surfaces actually immutable after construction. `SnapshotGuard.Copy<T>` must not publish a mutable array behind `IReadOnlyList<T>` for `SemanticProjectSnapshot` collections or `ElementSnapshot.GeneratedReferences`.
+Make C01 persistence list surfaces actually immutable after construction. `SnapshotGuard.Copy<T>` must not publish mutable arrays behind `IReadOnlyList<T>` for `SemanticProjectSnapshot` collections or `ElementSnapshot.GeneratedReferences`; `ProjectContainerManifest.Payloads` must likewise not publish its sorted mutable backing array after manifest validation.
 
 ## Expected surfaces
 - `src/QS3D.Platform.Persistence/SemanticSnapshotModel.cs`
+- `src/QS3D.Platform.Persistence/ProjectContainerManifest.cs`
 - `tests/QS3D.Platform.SmokeTests/SemanticSnapshotReadonlyListsModuleSmoke.cs`
 - `tests/QS3D.Platform.SmokeTests/SemanticSnapshotReadonlyListsSmokeRegistration.cs`
+- `tests/QS3D.Platform.SmokeTests/ProjectContainerManifestReadonlyPayloadsModuleSmoke.cs`
+- `tests/QS3D.Platform.SmokeTests/ProjectContainerManifestReadonlyPayloadsSmokeRegistration.cs`
 - this claim file
 
 ## Excluded scope
 - `src/QS3D.Platform.Domain/SemanticModel.cs` and SemanticElement read-only views owned by #292
 - `ElementSnapshot.Properties` immutability completed by #289
-- bounded/count-drift materialization completed by #94
+- bounded/count-drift snapshot materialization completed by #94
+- project-container cardinality/admission behavior already completed by earlier C01 carriers
 - Quantity/estimating, CAD/native adapters, MCP, installer/release, unrelated persistence behavior
 
 ## Validation plan
-- deterministic RED proving non-empty top-level snapshot lists and generated-reference lists are mutable through a down-cast on baseline
-- minimal production read-only publication preserving detached copy, insertion order, indexed access, cardinality/count-drift/null-entry guards
+- deterministic RED proving non-empty top-level snapshot lists, generated-reference lists, and manifest payload lists are mutable through down-casts on baseline
+- minimal production read-only publication preserving detached copy, insertion/sorted ordering, indexed access, cardinality/count-drift/null-entry guards and normalized manifest identity
 - exact-head Platform build/smoke CI
 - self-review castability, allocation, compatibility, nullability, ordering and mutation leakage
 
