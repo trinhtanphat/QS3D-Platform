@@ -49,7 +49,37 @@ internal static class SemanticElementInvariantModuleSmoke
         if (!element.RemoveGeneratedReference(generated) || element.GeneratedReferences.Contains(generated))
             throw new InvalidOperationException("Valid generated CAD reference was not removed.");
 
-        Console.WriteLine("PASS semantic element structural identity invariants");
+        element.SetProperty("ThicknessMm", "200");
+        var generatedBypass = TryInjectGeneratedReference(element.GeneratedReferences);
+        var propertyBypass = TryInjectBlankProperty(element.Properties);
+        if (generatedBypass || propertyBypass)
+            throw new InvalidOperationException(
+                $"SemanticElement read-only views expose mutable backing state: generated={generatedBypass}, properties={propertyBypass}.");
+        if (!element.Properties.TryGetValue("ThicknessMm", out var thickness) || thickness != "200")
+            throw new InvalidOperationException("Validated SemanticElement property state was not retained.");
+
+        Console.WriteLine("PASS semantic element structural identity and read-only view invariants");
+    }
+
+    private static bool TryInjectGeneratedReference(IReadOnlyCollection<CadReference> references)
+    {
+        if (references is not ISet<CadReference> mutable) return false;
+        try { return mutable.Add(default); }
+        catch (NotSupportedException) { return false; }
+    }
+
+    private static bool TryInjectBlankProperty(IReadOnlyDictionary<string, string> properties)
+    {
+        if (properties is not IDictionary<string, string> mutable) return false;
+        try
+        {
+            mutable[" "] = "bypass";
+            return properties.ContainsKey(" ");
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
     }
 
     private static void Throws<T>(Action action) where T : Exception
