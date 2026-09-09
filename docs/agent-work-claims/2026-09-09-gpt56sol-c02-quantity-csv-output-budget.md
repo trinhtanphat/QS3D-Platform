@@ -1,11 +1,11 @@
 # Work claim — Quantity Schedule CSV bounded output
 
-- Status: `ACTIVE`
+- Status: `COMPLETED`
 - Agent: `gpt56sol-c02-20260909-quantity-csv-output-budget`
 - Registered: `2026-09-09T13:09:50+07:00`
 - Baseline main SHA: `94b83326aa882fd4ae54738cba36a308bc39ace7`
 - Implementation branch: `agent/gpt56sol-c02-20260909/quantity-csv-output-budget`
-- Integration batch: `TBD`
+- Integration batch: `PR #299 / merge 728aa5779e3b1b0a30dae641359d95688228f50f`
 
 ## Reserved scope
 Bound `QuantityScheduleCsv.Write` output growth before final string publication while preserving deterministic CSV fidelity, spreadsheet formula neutralization, provenance and existing cardinality semantics.
@@ -17,17 +17,19 @@ Bound `QuantityScheduleCsv.Write` output growth before final string publication 
 - this claim file for terminal status only
 
 ## Reproduced defect
-`QuantityScheduleCsv.Write` validates output record cardinality but then materializes the entire CSV in an unbounded `StringBuilder` and returns `output.ToString()`. Semantically valid long names/codes/provenance across admitted records can therefore amplify managed memory/output without a byte budget. Existing formula neutralization and deterministic ordering do not bound this resource surface.
+`QuantityScheduleCsv.Write` validated output record cardinality but then materialized the entire CSV in an unbounded `StringBuilder` and returned `output.ToString()`. Semantically valid long names/codes/provenance across admitted records could therefore amplify managed memory/output without a byte budget. Existing formula neutralization and deterministic ordering did not bound this resource surface.
+
+## Completed implementation
+`QuantityScheduleCsv.Write` now enforces a 16 MiB total emitted UTF-8 budget, reserves each complete field before append, directly emits normalized CRLF and doubled quotes without whole-field replacement copies, preserves spreadsheet-active-text neutralization, deterministic ordering, invariant quantity formatting, provenance and empty-row semantics, and uses checked netstandard2.0-safe UTF-8 byte accounting.
+
+## Verification
+- RED test-only head: `8ee43bd0506aa3938d17dcc895c938cac9a70abd`; CI `34318253147` failed exactly because the over-budget valid CSV returned successfully.
+- First production attempt `7223f840f9f5d17f7ae8997149c4be43f99d8553`; CI `34318406581` exposed a netstandard2.0 API incompatibility in byte counting. No tests were weakened.
+- Corrected exact head: `bfb3f19e9b34608febb415ce90d56b20a8ccb64f`; CI `34318534912` completed SUCCESS.
+- PR #299 merged with expected-head guard to Platform `main` as `728aa5779e3b1b0a30dae641359d95688228f50f`, and exact main was verified at that SHA before this terminal update.
 
 ## Excluded scope
-BOQ arithmetic, quantity-rule math, XLSX/IFC/BCF, native CAD/runtime, persistence, release/signing, and parent-repository submodule integration are excluded from this upstream implementation claim.
-
-## Validation plan
-1. RED-first deterministic smoke proving an admitted schedule can exceed a bounded UTF-8 CSV output contract on current source.
-2. Minimal production implementation that enforces an explicit total UTF-8 output budget before appending beyond it, avoids whole-field replacement amplification where practical, and preserves exact RFC-style quoting/CRLF and spreadsheet-safety semantics.
-3. Existing CSV safety/cardinality/provenance/empty-row/evidence smokes plus full Platform smoke/CI.
-4. Self-review deterministic ordering, Unicode byte accounting, quote/newline expansion, formula-prefix expansion, overflow, and no partial returned output.
-5. Final reviewed integration and exact-main verification before marking this claim completed.
+BOQ arithmetic, quantity-rule math, XLSX/IFC/BCF, native CAD/runtime, persistence, release/signing, and parent-repository submodule integration remain excluded from this upstream implementation claim.
 
 ## Completion condition
-The bounded CSV behavior and regression coverage are merged to Platform `main`, exact-main CI is green, and the claim is terminalized without weakening existing CSV semantics.
+Satisfied for the upstream Platform implementation. Parent `QS3D-BricsCAD` submodule integration remains a separate Reservation-v2 carrier and must not reuse this claim.
