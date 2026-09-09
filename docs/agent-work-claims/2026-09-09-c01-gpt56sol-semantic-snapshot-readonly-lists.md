@@ -5,7 +5,7 @@
 - Registered: `2026-09-09T07:57:00+07:00`
 - Baseline main SHA: `7788e981f71543854ee75d8cf2fee7d5f5993a18`
 - Implementation branch: `agent/gpt56sol-c01-20260909-snapshot-readonly/issue-295-semantic-snapshot-readonly-lists`
-- Integration batch: `TBD`
+- Integration batch: `PR #297`
 - Lane-Key: `issue-295`
 - Canonical issue: `#295`
 
@@ -16,9 +16,7 @@ Make C01 persistence list surfaces actually immutable after construction. `Snaps
 - `src/QS3D.Platform.Persistence/SemanticSnapshotModel.cs`
 - `src/QS3D.Platform.Persistence/ProjectContainerManifest.cs`
 - `tests/QS3D.Platform.SmokeTests/SemanticSnapshotReadonlyListsModuleSmoke.cs`
-- `tests/QS3D.Platform.SmokeTests/SemanticSnapshotReadonlyListsSmokeRegistration.cs`
 - `tests/QS3D.Platform.SmokeTests/ProjectContainerManifestReadonlyPayloadsModuleSmoke.cs`
-- `tests/QS3D.Platform.SmokeTests/ProjectContainerManifestReadonlyPayloadsSmokeRegistration.cs`
 - this claim file
 
 ## Excluded scope
@@ -28,10 +26,10 @@ Make C01 persistence list surfaces actually immutable after construction. `Snaps
 - project-container cardinality/admission behavior already completed by earlier C01 carriers
 - Quantity/estimating, CAD/native adapters, MCP, installer/release, unrelated persistence behavior
 
-## Validation plan
-- deterministic RED proving non-empty top-level snapshot lists, generated-reference lists, and manifest payload lists are mutable through down-casts on baseline
+## Validation evidence / plan
+- deterministic test-only RED head `a95ff14116d4db0de36452a78d9ddfadc37a9b5b`: Platform CI `34297554027` built the solution with 0 warnings / 0 errors, then failed in `ProjectContainerManifestReadonlyPayloadsModuleSmoke` because indexed mutation did not throw `NotSupportedException`
 - minimal production read-only publication preserving detached copy, insertion/sorted ordering, indexed access, cardinality/count-drift/null-entry guards and normalized manifest identity
-- exact-head Platform build/smoke CI
+- fresh exact-head Platform build/smoke CI after production fix
 - self-review castability, allocation, compatibility, nullability, ordering and mutation leakage
 
 ## Completion condition

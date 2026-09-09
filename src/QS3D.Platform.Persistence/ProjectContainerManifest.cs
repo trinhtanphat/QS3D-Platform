@@ -77,7 +77,7 @@ public sealed class ProjectContainerManifest
 
         FormatVersion = formatVersion;
         ProjectId = projectId;
-        Payloads = byName.Values.OrderBy(static payload => payload.Name, StringComparer.Ordinal).ToArray();
+        Payloads = Array.AsReadOnly(byName.Values.OrderBy(static payload => payload.Name, StringComparer.Ordinal).ToArray());
     }
 
     public int FormatVersion { get; }
