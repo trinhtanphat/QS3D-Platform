@@ -122,7 +122,7 @@ internal static class SnapshotGuard
 {
     internal const int MaxCollectionEntries = 100_000;
 
-    public static T[] Copy<T>(IEnumerable<T> values, string parameterName) where T : class
+    public static IReadOnlyList<T> Copy<T>(IEnumerable<T> values, string parameterName) where T : class
     {
         if (values is null) throw new ArgumentNullException(parameterName);
 
@@ -150,7 +150,7 @@ internal static class SnapshotGuard
         if (advertisedCount != finalCount || (finalCount.HasValue && finalCount.Value != result.Count))
             throw new ArgumentException("Snapshot collection Count changed during materialization.", parameterName);
 
-        return result.ToArray();
+        return Array.AsReadOnly(result.ToArray());
     }
 
     public static IReadOnlyDictionary<string, string> CopyProperties(IReadOnlyDictionary<string, string>? properties)
