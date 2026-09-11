@@ -56,16 +56,8 @@ public static class QuantityScheduleCsv
         Append(output, row.ElementKind.ToString());
         Append(output, row.FamilyId.Value.ToString("D", CultureInfo.InvariantCulture));
         Append(output, row.FamilyName, neutralizeSpreadsheetActiveText: true);
-        Append(
-            output,
-            row.FloorId.HasValue
-                ? row.FloorId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
-                : string.Empty);
-        Append(
-            output,
-            row.ZoneId.HasValue
-                ? row.ZoneId.Value.Value.ToString("D", CultureInfo.InvariantCulture)
-                : string.Empty);
+        Append(output, row.FloorId.HasValue ? row.FloorId.Value.Value.ToString("D", CultureInfo.InvariantCulture) : string.Empty);
+        Append(output, row.ZoneId.HasValue ? row.ZoneId.Value.Value.ToString("D", CultureInfo.InvariantCulture) : string.Empty);
     }
 
     private static void AppendSourceProvenance(CsvOutputBuilder output, QuantityScheduleRow row)
@@ -94,11 +86,7 @@ public static class QuantityScheduleCsv
         }
     }
 
-    private static void Append(
-        CsvOutputBuilder output,
-        string value,
-        bool last = false,
-        bool neutralizeSpreadsheetActiveText = false)
+    private static void Append(CsvOutputBuilder output, string value, bool last = false, bool neutralizeSpreadsheetActiveText = false)
     {
         if (output is null) throw new ArgumentNullException(nameof(output));
         if (value is null) throw new ArgumentNullException(nameof(value));
@@ -203,7 +191,7 @@ public static class QuantityScheduleCsv
                     continue;
                 }
 
-                bytes = checked(bytes + 2L); // normalized CRLF
+                bytes = checked(bytes + 2L);
                 if (current == '\r' && index + 1 < value.Length && value[index + 1] == '\n')
                     index++;
                 segmentStart = index + 1;
@@ -234,22 +222,14 @@ public static class QuantityScheduleCsv
                 }
                 if (char.IsHighSurrogate(current))
                 {
-                    if (index + 1 < end && char.IsLowSurrogate(value[index + 1]))
-                    {
-                        bytes = checked(bytes + 4L);
-                        index++;
-                    }
-                    else
-                    {
-                        bytes = checked(bytes + 3L); // UTF-8 replacement character
-                    }
+                    if (index + 1 >= end || !char.IsLowSurrogate(value[index + 1]))
+                        throw new InvalidOperationException("Quantity CSV text contains malformed UTF-16.");
+                    bytes = checked(bytes + 4L);
+                    index++;
                     continue;
                 }
                 if (char.IsLowSurrogate(current))
-                {
-                    bytes = checked(bytes + 3L); // UTF-8 replacement character
-                    continue;
-                }
+                    throw new InvalidOperationException("Quantity CSV text contains malformed UTF-16.");
                 bytes = checked(bytes + 3L);
             }
             return bytes;
