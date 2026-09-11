@@ -241,14 +241,13 @@ public static class QuantityScheduleCsv
                     }
                     else
                     {
-                        bytes = checked(bytes + 3L); // UTF-8 replacement character
+                        throw new InvalidOperationException("Quantity CSV text contains malformed UTF-16.");
                     }
                     continue;
                 }
                 if (char.IsLowSurrogate(current))
                 {
-                    bytes = checked(bytes + 3L); // UTF-8 replacement character
-                    continue;
+                    throw new InvalidOperationException("Quantity CSV text contains malformed UTF-16.");
                 }
                 bytes = checked(bytes + 3L);
             }
