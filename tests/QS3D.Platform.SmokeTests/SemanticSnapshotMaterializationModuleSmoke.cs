@@ -113,8 +113,8 @@ internal static class SemanticSnapshotMaterializationModuleSmoke
             canonicalSnapshot.FamilyId,
             canonicalSnapshot.FloorId,
             canonicalSnapshot.ZoneId,
-            canonicalSnapshot.ParentId,
-            canonicalSnapshot.CadReferences,
+            canonicalSnapshot.SourceReference,
+            canonicalSnapshot.GeneratedReferences,
             alternateInsertion);
         if (!equivalentSnapshot.Properties.SequenceEqual(canonicalSnapshot.Properties))
             throw new InvalidOperationException("Logically equivalent snapshot property maps must materialize in the same canonical sequence regardless of insertion history.");
