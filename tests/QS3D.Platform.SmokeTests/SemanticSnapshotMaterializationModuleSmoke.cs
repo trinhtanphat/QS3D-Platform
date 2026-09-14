@@ -77,7 +77,49 @@ internal static class SemanticSnapshotMaterializationModuleSmoke
         if (immutableSnapshot.Properties["ThicknessMm"] != "200")
             throw new InvalidOperationException("Semantic snapshot properties must remain immutable after construction.");
 
-        Console.WriteLine("PASS semantic snapshot bounded materialization and property immutability contracts");
+        var reverseInserted = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["zeta"] = "3",
+            ["Alpha"] = "1",
+            ["beta"] = "2"
+        };
+        var canonicalSnapshot = new ElementSnapshot(
+            Guid.NewGuid(),
+            SemanticElementKind.Wall,
+            "Canonical",
+            family.Id,
+            null,
+            null,
+            null,
+            Array.Empty<CadReferenceSnapshot>(),
+            reverseInserted);
+
+        var expectedPropertyOrder = new[] { "Alpha", "beta", "zeta" };
+        var actualPropertyOrder = canonicalSnapshot.Properties.Keys.ToArray();
+        if (!actualPropertyOrder.SequenceEqual(expectedPropertyOrder, StringComparer.Ordinal))
+            throw new InvalidOperationException(
+                $"Semantic snapshot properties must be canonicalized with StringComparer.Ordinal. Expected [{string.Join(", ", expectedPropertyOrder)}], got [{string.Join(", ", actualPropertyOrder)}].");
+
+        var alternateInsertion = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["beta"] = "2",
+            ["zeta"] = "3",
+            ["Alpha"] = "1"
+        };
+        var equivalentSnapshot = new ElementSnapshot(
+            canonicalSnapshot.Id,
+            canonicalSnapshot.Kind,
+            canonicalSnapshot.Name,
+            canonicalSnapshot.FamilyId,
+            canonicalSnapshot.FloorId,
+            canonicalSnapshot.ZoneId,
+            canonicalSnapshot.SourceReference,
+            canonicalSnapshot.GeneratedReferences,
+            alternateInsertion);
+        if (!equivalentSnapshot.Properties.SequenceEqual(canonicalSnapshot.Properties))
+            throw new InvalidOperationException("Logically equivalent snapshot property maps must materialize in the same canonical sequence regardless of insertion history.");
+
+        Console.WriteLine("PASS semantic snapshot bounded materialization, property immutability, and canonical ordering contracts");
     }
 
     private sealed class AdvertisedOnlyCollection<T> : IReadOnlyCollection<T>
