@@ -155,7 +155,7 @@ internal static class SnapshotGuard
 
     public static IReadOnlyDictionary<string, string> CopyProperties(IReadOnlyDictionary<string, string>? properties)
     {
-        var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
         if (properties is null) return new ReadOnlyDictionary<string, string>(result);
 
         var advertisedCount = properties.Count;
